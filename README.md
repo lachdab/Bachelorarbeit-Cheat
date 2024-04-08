@@ -5,3 +5,7 @@
 1. Aimbot (später mit KI)
 2. Wallhack
 3. Nice GUI
+
+
+### dependencies die im Cheat verwendet wurden
+1. imgui von -> https://github.com/ocornut/imgui
