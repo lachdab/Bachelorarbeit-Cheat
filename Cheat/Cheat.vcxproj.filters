@@ -39,6 +39,15 @@
     <ClInclude Include="ext\imgui\imstb_truetype.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
+    <ClInclude Include="gui_OLD.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="ext\imgui\imgui_impl_win32.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="gui.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp">
@@ -63,6 +72,15 @@
       <Filter>Quelldateien</Filter>
     </ClCompile>
     <ClCompile Include="ext\imgui\imgui_widgets.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
+    <ClCompile Include="gui_OLD.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
+    <ClCompile Include="ext\imgui\imgui_impl_win32.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
+    <ClCompile Include="gui.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
   </ItemGroup>

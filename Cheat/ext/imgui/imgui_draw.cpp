@@ -1,4 +1,4 @@
-// dear imgui, v1.90.5 WIP
+// dear imgui, v1.90.5
 // (drawing and font code)
 
 /*
@@ -144,7 +144,7 @@ namespace IMGUI_STB_NAMESPACE
 #define STBTT_DEF extern
 #endif
 #ifdef IMGUI_STB_TRUETYPE_FILENAME
-//#include IMGUI_STB_TRUETYPE_FILENAME
+#include IMGUI_STB_TRUETYPE_FILENAME
 #else
 #include "imstb_truetype.h"
 #endif
