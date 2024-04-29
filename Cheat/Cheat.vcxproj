@@ -156,9 +156,12 @@
     <ClInclude Include="ext\imgui\imstb_rectpack.h" />
     <ClInclude Include="ext\imgui\imstb_textedit.h" />
     <ClInclude Include="ext\imgui\imstb_truetype.h" />
+    <ClInclude Include="ext\MinHook\MinHook.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="gui.h" />
-    <ClInclude Include="gui_OLD.h" />
+    <ClInclude Include="il2cpp.h" />
+    <ClInclude Include="MinHook\MinHook.h" />
+    <ClInclude Include="misc.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
@@ -170,8 +173,7 @@
     <ClCompile Include="ext\imgui\imgui_tables.cpp" />
     <ClCompile Include="ext\imgui\imgui_widgets.cpp" />
     <ClCompile Include="gui.cpp" />
-    <ClCompile Include="gui_OLD.cpp" />
-    <ClCompile Include="main.cpp" />
+    <ClCompile Include="misc.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -4,18 +4,17 @@
 
 namespace gui
 {
-	// main function
-	int RunGUI();
+	extern HINSTANCE dll_handle;
 
-	// Forward declarations of helper functions
-	bool CreateDeviceD3D(HWND hWnd);
-	void CleanupDeviceD3D();
-	void CreateRenderTarget();
-	void CleanupRenderTarget();
-	LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-
+	// helper functions
 	HWND getHandlerByWindowTitle(const std::wstring& windowTitle);
 
-	// Debug and Logging
-	std::string GetErrorMessage(HRESULT hr);
+	// main function
+	int WINAPI RunGUI();
+
+	// hook functions
+	LRESULT __stdcall WndProc(const HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+	static long __stdcall detour_present(IDXGISwapChain* p_swap_chain, UINT sync_interval, UINT flags);
+	bool get_present_pointer();
+	DWORD __stdcall EjectThread(LPVOID lpParameter);
 }
