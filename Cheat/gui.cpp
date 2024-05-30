@@ -116,8 +116,7 @@ static long __stdcall gui::detour_present(IDXGISwapChain* p_swap_chain, UINT syn
                 ScreenToClient(window, &cursorPos);
                 io.MousePos = ImVec2((float)cursorPos.x, (float)cursorPos.y);
             }
-            ImGui::StyleColorsDark();
-            ImGui::GetStyle().Colors[ImGuiCol_WindowBg] = ImVec4(0.0f, 0.0f, 0.0f, 1.0f);
+            gui::ImGuiCustomStyle();
             ImGui_ImplWin32_Init(window);
             ImGui_ImplDX11_Init(p_device, p_context);
             init = true;
@@ -133,50 +132,72 @@ static long __stdcall gui::detour_present(IDXGISwapChain* p_swap_chain, UINT syn
     if (showImGuiMenu) {
         ImGui::Begin("Cheat Menu");
         ImGui::Text("with F1 show/hide cheat menu");
-        
-        ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_None;
-        if (ImGui::BeginTabBar("MyTabBar", tab_bar_flags))
+
+        if (ImGui::TreeNode("ESP"))
         {
-            if (ImGui::BeginTabItem("Aimbot"))
+            if (ImGui::TreeNode("Players"))
             {
-                if (ImGui::Button("Enable"))
-                {
-                    // set bool to true to enable aimbot
-                }
-                ImGui::EndTabItem();
+                // Players section content
+                static bool enableESP = true;
+                ImGui::Checkbox("Enable ESP", &enableESP);
+                if (enableESP)
+                    // TODO: run the function to show player esp
+                ImGui::TreePop();
             }
-            if (ImGui::BeginTabItem("Wallhack"))
+            if (ImGui::TreeNode("Weapons"))
             {
-                if (ImGui::Button("Enable"))
-                {
-                    // set bool to true to enable wallhack
-                }
-                ImGui::EndTabItem();
+                // Weapons section content
+                static bool espVehicles = false;
+                ImGui::Checkbox("Show Weapons", &espVehicles);
+                if (espVehicles)
+                    // TODO: run the function to show weapon esp
+                ImGui::TreePop();
             }
-            if (ImGui::BeginTabItem("Misc"))
-            {
-                bool enabledA = false;
-                if (ImGui::Button("Enable Infinite Ammo"))
-                {
-                    std::cout << "moduleBase: " << moduleBase << std::endl;
-                    std::cout << "isShootingg: " << isShootingg << std::endl;
-                    std::cout << "isShootinggTarget: " << isShootinggTarget << std::endl;
-                    std::cout << "Trying to enable the hook" << std::endl;
-                    MH_STATUS ttstatus = MH_EnableHook(isShootinggTarget);
-                    if (ttstatus != MH_OK)
-                    {
-                        std::string ssStatus = MH_StatusToString(ttstatus);
-                        std::cout << ssStatus << std::endl;
-                        return 1;
-                    }
-                    std::cout << "Hook enabled" << std::endl;
-                    //MH_DisableHook(addAmmooTarget);
-                }
-                ImGui::EndTabItem();
-            }
-            ImGui::EndTabBar();
+            ImGui::TreePop();
         }
-        ImGui::TreePop();
+
+        if (ImGui::TreeNode("Aimbot"))
+        {
+            static bool enableAimbot = false;
+            static float aimbotFOV = 0.5f;
+            ImGui::Checkbox("Enable Aimbot", &enableAimbot);
+            ImGui::SliderFloat("FOV", &aimbotFOV, 0.0f, 1.0f, "%.1f");
+
+            if (ImGui::TreeNode("AI Aimbot"))
+            {
+                ImGui::TreePop();
+            }
+            ImGui::TreePop();
+        }
+
+        if (ImGui::TreeNode("Misc"))
+        {
+            static bool playerIsShooting = false;
+            static bool enableInfiniteAmmo = false;
+            ImGui::Checkbox("Show if Player is Shooting", &playerIsShooting);
+            ImGui::Checkbox("Enable Infinite Ammo", &enableInfiniteAmmo);
+
+            if (playerIsShooting)
+            {
+                std::cout << "moduleBase: " << moduleBase << std::endl;
+                std::cout << "isShootingg: " << isShootingg << std::endl;
+                std::cout << "isShootinggTarget: " << isShootinggTarget << std::endl;
+                std::cout << "Trying to enable the hook" << std::endl;
+                MH_STATUS ttstatus = MH_EnableHook(isShootinggTarget);
+                if (ttstatus != MH_OK)
+                {
+                    std::string ssStatus = MH_StatusToString(ttstatus);
+                    std::cout << ssStatus << std::endl;
+                    return 1;
+                }
+                std::cout << "Hook enabled" << std::endl;
+            }
+            if (enableInfiniteAmmo)
+            {
+
+            }
+            ImGui::TreePop();
+        }
         ImGui::End();
     }
 
@@ -303,3 +324,26 @@ HWND gui::getHandlerByWindowTitle(const std::wstring& windowTitle) {
     return window;
 }
 
+void gui::ImGuiCustomStyle() {
+    ImGuiStyle& style = ImGui::GetStyle();
+
+    style.WindowPadding = ImVec2(15, 15);
+    style.WindowRounding = 5.0f;
+    style.FramePadding = ImVec2(5, 5);
+    style.FrameRounding = 4.0f;
+    style.ItemSpacing = ImVec2(12, 8);
+    style.ScrollbarSize = 15.0f;
+    style.ScrollbarRounding = 9.0f;
+    
+    style.Colors[ImGuiCol_Text] = ImVec4(0.80f, 0.80f, 0.83f, 1.00f);
+    style.Colors[ImGuiCol_WindowBg] = ImVec4(0.06f, 0.05f, 0.07f, 1.00f);
+    style.Colors[ImGuiCol_ChildBg] = ImVec4(0.07f, 0.07f, 0.09f, 1.00f);
+    style.Colors[ImGuiCol_PopupBg] = ImVec4(0.07f, 0.07f, 0.09f, 1.00f);
+    style.Colors[ImGuiCol_Border] = ImVec4(0.80f, 0.80f, 0.83f, 0.88f);
+    style.Colors[ImGuiCol_FrameBg] = ImVec4(0.10f, 0.09f, 0.12f, 1.00f);
+    style.Colors[ImGuiCol_FrameBgHovered] = ImVec4(0.24f, 0.23f, 0.29f, 1.00f);
+    style.Colors[ImGuiCol_FrameBgActive] = ImVec4(0.56f, 0.56f, 0.58f, 1.00f);
+    style.Colors[ImGuiCol_TitleBg] = ImVec4(0.10f, 0.09f, 0.12f, 1.00f);
+    style.Colors[ImGuiCol_TitleBgActive] = ImVec4(0.07f, 0.07f, 0.09f, 1.00f);
+    style.Colors[ImGuiCol_MenuBarBg] = ImVec4(0.10f, 0.09f, 0.12f, 1.00f);
+}

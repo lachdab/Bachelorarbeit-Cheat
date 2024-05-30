@@ -57,6 +57,12 @@
     <ClInclude Include="il2cpp.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
+    <ClInclude Include="wallhack.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="aimbot.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp">
@@ -87,6 +93,12 @@
       <Filter>Quelldateien</Filter>
     </ClCompile>
     <ClCompile Include="misc.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
+    <ClCompile Include="wallhack.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
+    <ClCompile Include="aimbot.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
   </ItemGroup>
