@@ -1,13 +1,16 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
+// MINHOOK
 #include "ext/MinHook/MinHook.h"
 #pragma comment(lib, "ext/MinHook/libMinHook.x64.lib")
 
+// IMGUI
 #include "ext/imgui/imgui.h"
 #include "ext/imgui/imgui_impl_win32.h"
 #include "ext/imgui/imgui_impl_dx11.h"
 
+// OTHER
 #include <d3d11.h>
 #include <string>
 #include "gui.h"
@@ -15,7 +18,7 @@
 #include <iostream>
 
 WNDPROC oWndProc;
-bool showImGuiMenu = false;
+bool showImGuiMenu = true;
 bool init = false;
 HINSTANCE gui::dll_handle = nullptr;
 
@@ -24,7 +27,7 @@ ID3D11Device* p_device = NULL;
 ID3D11DeviceContext* p_context = NULL;
 ID3D11RenderTargetView* mainRenderTargetView = NULL;
 
-// this is the prototype hook function for is the localPlayer shooting
+// This is the prototype hook function for is the localPlayer shooting
 uintptr_t moduleBase = (uintptr_t)GetModuleHandleW(L"GameAssembly.dll");
 typedef bool(__fastcall* isShooting)(DWORD64* __this, DWORD64* methodInfo);
 isShooting isShootingg;
@@ -48,13 +51,23 @@ BOOL WINAPI detourPeekMessageA(LPMSG lpMsg, HWND  hWnd, UINT  wMsgFilterMin, UIN
     return pPeekMessageA(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax, wRemoveMsg);
 }*/
 
+
+//// Hooking drawIndex from DX11
+//typedef void(__stdcall* ID3D11DrawIndexed)(ID3D11DeviceContext* pContext, UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation);
+//bool bDrawIndexed = true;
+//ID3D11DrawIndexed fnID3D11DrawIndexed;
+//ID3D11DrawIndexed fnID3D11DrawIndexed_target;
+//// nicht sicher ob nötig
+//DWORD_PTR* pDeviceContextVTable = NULL;
+
 typedef long(__stdcall* present)(IDXGISwapChain*, UINT, UINT);
 present p_present;
 present p_present_target;
 
+
 bool gui::get_present_pointer()
 {
-    std::wstring processName = L"Bachelorarbeit";
+    std::wstring processName = L"Bachelorarbeit2.0";
 
     DXGI_SWAP_CHAIN_DESC sd;
     ZeroMemory(&sd, sizeof(sd));
@@ -70,6 +83,7 @@ bool gui::get_present_pointer()
     ID3D11Device* device;
 
     const D3D_FEATURE_LEVEL feature_levels[] = { D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_0, };
+    // creation of the dx11 device and swap chain
     if (D3D11CreateDeviceAndSwapChain(
         NULL,
         D3D_DRIVER_TYPE_HARDWARE,
@@ -85,6 +99,10 @@ bool gui::get_present_pointer()
         nullptr) == S_OK)
     {
         void** p_vtable = *reinterpret_cast<void***>(swap_chain);
+        /*pDeviceContextVTable = (DWORD_PTR*)p_vtable[0];
+        fnID3D11DrawIndexed_target = (ID3D11DrawIndexed)p_vtable[12];
+        std::cout << "[+] pDeviceContextVTable Addr: " << std::hex << pDeviceContextVTable << std::endl;
+        std::cout << "[+] fnID3D11DrawIndexed Addr: " << std::hex << fnID3D11DrawIndexed_target << std::endl;*/
         swap_chain->Release();
         device->Release();
         //context->Release();
@@ -101,21 +119,13 @@ static long __stdcall gui::detour_present(IDXGISwapChain* p_swap_chain, UINT syn
             p_device->GetImmediateContext(&p_context);
             DXGI_SWAP_CHAIN_DESC sd;
             p_swap_chain->GetDesc(&sd);
+            ImGui::CreateContext();
             window = sd.OutputWindow;
             ID3D11Texture2D* pBackBuffer;
             p_swap_chain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&pBackBuffer);
             p_device->CreateRenderTargetView(pBackBuffer, NULL, &mainRenderTargetView);
             pBackBuffer->Release();
             oWndProc = (WNDPROC)SetWindowLongPtr(window, GWLP_WNDPROC, (LONG_PTR)gui::WndProc);
-            ImGui::CreateContext();
-            ImGuiIO& io = ImGui::GetIO();
-            if (showImGuiMenu)
-            {
-                POINT cursorPos;
-                GetCursorPos(&cursorPos);
-                ScreenToClient(window, &cursorPos);
-                io.MousePos = ImVec2((float)cursorPos.x, (float)cursorPos.y);
-            }
             gui::ImGuiCustomStyle();
             ImGui_ImplWin32_Init(window);
             ImGui_ImplDX11_Init(p_device, p_context);
@@ -124,8 +134,8 @@ static long __stdcall gui::detour_present(IDXGISwapChain* p_swap_chain, UINT syn
         else
             return p_present(p_swap_chain, sync_interval, flags);
     }
-    ImGui_ImplDX11_NewFrame();
     ImGui_ImplWin32_NewFrame();
+    ImGui_ImplDX11_NewFrame();
 
     ImGui::NewFrame();
 
@@ -138,7 +148,7 @@ static long __stdcall gui::detour_present(IDXGISwapChain* p_swap_chain, UINT syn
             if (ImGui::TreeNode("Players"))
             {
                 // Players section content
-                static bool enableESP = true;
+                static bool enableESP = false;
                 ImGui::Checkbox("Enable ESP", &enableESP);
                 if (enableESP)
                     // TODO: run the function to show player esp
@@ -218,6 +228,13 @@ DWORD __stdcall gui::EjectThread(LPVOID lpParameter) {
     return 0;
 }
 
+bool AreHooksIntact()
+{
+    // Check if hooks are still valid
+    return (MH_EnableHook(MH_ALL_HOOKS) == MH_OK);
+}
+
+
 // main code
 int WINAPI gui::RunGUI()
 {   
@@ -235,10 +252,22 @@ int WINAPI gui::RunGUI()
     if (MH_CreateHook(reinterpret_cast<void**>(p_present_target), &gui::detour_present, reinterpret_cast<void**>(&p_present)) != MH_OK) {
         return 1;
     }
-
     if (MH_EnableHook(p_present_target) != MH_OK) {
         return 1;
     }
+
+    // TODO: create and enable hook for drawIndex from DX11
+    /*MH_STATUS testStatusss = MH_CreateHook(reinterpret_cast<void**>(fnID3D11DrawIndexed_target), &hookD3D11DrawIndexed, reinterpret_cast<void**>(&fnID3D11DrawIndexed));
+    if (testStatusss != MH_OK)
+    {
+        std::string ssStatus = MH_StatusToString(testStatusss);
+        std::cout << ssStatus << std::endl;
+        return 1;
+    }
+    if (MH_EnableHook(fnID3D11DrawIndexed_target) != MH_OK)
+    {
+        return 1;
+    }*/
 
     //if (MH_CreateHookApiEx(L"user32", "PeekMessageA", &detourPeekMessageA, reinterpret_cast<void**>(&pPeekMessageA), reinterpret_cast<void**>(&pPeekMessageATarget)) != MH_OK) {
     //    return 1;
@@ -254,16 +283,9 @@ int WINAPI gui::RunGUI()
     }
 
     while (true) {
-        Sleep(50);
-
-        if (GetAsyncKeyState(VK_F1) & 1) {
-            printf_s("F1\n");
-            showImGuiMenu = !showImGuiMenu;
-        }
-
-        if (GetAsyncKeyState(VK_NUMPAD1)) {
-            break;
-        }
+        Sleep(2000);
+        bool test = AreHooksIntact();
+        std::cout << "Hooks Intact: " << test << std::endl;
     }
 
     // cleanup
@@ -288,11 +310,24 @@ int WINAPI gui::RunGUI()
     return 0;
 }
 
-// Forward declare message handler from imgui_impl_win32.cpp
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+// Forward declare message handler from imgui_impl_win32.cpp  IMGUI_IMPL_API
+extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 LRESULT __stdcall gui::WndProc(const HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     ImGuiIO& io = ImGui::GetIO();
+    POINT cursorPos;
+    GetCursorPos(&cursorPos);
+    ScreenToClient(window, &cursorPos);
+    io.MousePos = ImVec2((float)cursorPos.x, (float)cursorPos.y);
+
+    if (uMsg == WM_KEYUP)
+    {
+        if (wParam == VK_F1)
+        {
+            showImGuiMenu = !showImGuiMenu;
+        }
+    }
+
     if (showImGuiMenu)
     {
         io.MouseDrawCursor = true;
