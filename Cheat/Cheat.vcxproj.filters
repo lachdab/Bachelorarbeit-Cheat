@@ -51,9 +51,6 @@
     <ClInclude Include="gui.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
-    <ClInclude Include="misc.h">
-      <Filter>Headerdateien</Filter>
-    </ClInclude>
     <ClInclude Include="il2cpp.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
@@ -90,9 +87,6 @@
       <Filter>Quelldateien</Filter>
     </ClCompile>
     <ClCompile Include="gui.cpp">
-      <Filter>Quelldateien</Filter>
-    </ClCompile>
-    <ClCompile Include="misc.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
     <ClCompile Include="wallhack.cpp">

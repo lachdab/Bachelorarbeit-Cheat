@@ -162,7 +162,6 @@
     <ClInclude Include="gui.h" />
     <ClInclude Include="il2cpp.h" />
     <ClInclude Include="MinHook\MinHook.h" />
-    <ClInclude Include="misc.h" />
     <ClInclude Include="wallhack.h" />
   </ItemGroup>
   <ItemGroup>
@@ -176,7 +175,6 @@
     <ClCompile Include="ext\imgui\imgui_tables.cpp" />
     <ClCompile Include="ext\imgui\imgui_widgets.cpp" />
     <ClCompile Include="gui.cpp" />
-    <ClCompile Include="misc.cpp" />
     <ClCompile Include="wallhack.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
