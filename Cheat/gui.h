@@ -8,6 +8,7 @@ namespace gui
 
 	// helper functions
 	HWND getHandlerByWindowTitle(const std::wstring& windowTitle);
+	extern HRESULT GenerateShader(ID3D11PixelShader** pShader, float r, float g, float b);
 
 	// main function
 	int WINAPI RunGUI();

@@ -10,6 +10,9 @@
 #include "ext/imgui/imgui_impl_win32.h"
 #include "ext/imgui/imgui_impl_dx11.h"
 
+#include "aimbot.h"
+#include "wallhack.h"
+
 // OTHER
 #include <d3d11.h>
 #include <string>
@@ -19,44 +22,6 @@
 #include <mutex>
 #include <d3dcompiler.h>
 #define SAFE_RELEASE(p)      { if(p) { (p)->Release(); (p)=NULL; } }
-
-// Model Structures
-struct propertiesModel
-{
-    UINT stride;
-    UINT vedesc_ByteWidth;
-    UINT indesc_ByteWidth;
-    UINT pscdesc_ByteWidth;
-};
-
-static bool operator==(const propertiesModel& lhs, const propertiesModel& rhs)
-{
-    if (lhs.stride != rhs.stride
-        || lhs.vedesc_ByteWidth != rhs.vedesc_ByteWidth
-        || lhs.indesc_ByteWidth != rhs.indesc_ByteWidth
-        || lhs.pscdesc_ByteWidth != rhs.pscdesc_ByteWidth)
-    {
-        return false;
-    }
-    else
-    {
-        return true;
-    }
-}
-
-namespace std {
-    template<> struct hash<propertiesModel>
-    {
-        std::size_t operator()(const propertiesModel& obj) const noexcept
-        {
-            std::size_t h1 = std::hash<int>{}(obj.stride);
-            std::size_t h2 = std::hash<int>{}(obj.vedesc_ByteWidth);
-            std::size_t h3 = std::hash<int>{}(obj.indesc_ByteWidth);
-            std::size_t h4 = std::hash<int>{}(obj.pscdesc_ByteWidth);
-            return (h1 + h3 + h4) ^ (h2 << 1);
-        }
-    };
-}
 
 WNDPROC oWndProc;
 bool showImGuiMenu = false;
@@ -91,53 +56,13 @@ bool drawIndexedInstanced = false;
 bool firstTime = true;
 DWORD_PTR* pDeviceContextVTable = NULL;
 
-// Wallhack
-// Texture for the shader
-ID3D11Texture2D* textureRed = nullptr;
-ID3D11ShaderResourceView* textureView;
-ID3D11SamplerState* pSamplerState;
-ID3D11PixelShader* pShaderRed = NULL;
-ID3D11PixelShader* pShaderBlue = NULL;
-bool bShader = false;
-// Texture color for the shader imgui
-float redColor[4] = { 1.0f, 0.0f, 0.0f, 1.0f };
-float blueColor[4] = { 0.0f, 0.0f, 1.0f, 1.0f };
-
-// vertex
-UINT veStartSlot;
-UINT veNumBuffers;
-ID3D11Buffer* veBuffer;
-UINT Stride;
-UINT veBufferOffset;
-D3D11_BUFFER_DESC vedesc;
-
-// index
-ID3D11Buffer* inBuffer;
-DXGI_FORMAT inFormat;
-UINT inOffset; 
-D3D11_BUFFER_DESC indesc;
-
-// psgetConstantbuffers
-UINT pscStartSlot;
-UINT pscNumBuffers;
-ID3D11Buffer* pscBuffer;
-D3D11_BUFFER_DESC pscdesc;
-
-struct propertiesModel currentParams;
-std::unordered_set<propertiesModel> seenParams;
-std::unordered_set<propertiesModel> wallhackParams;
-int currentParamPosition = 1;
-std::mutex g_propertiesModels;
-
-// Z-Buffering variables
-ID3D11DepthStencilState* m_DepthStencilState;
-ID3D11DepthStencilState* m_DepthStencilStateFalse;
-ID3D11DepthStencilState* m_origDepthStencilState;
-UINT pStencilRef;
-
 // Booleans for different wallhack models
 bool bWallhack = false;
 bool bCases = false;
+bool bShader = false;
+
+// Aimbot
+DWORD Daimkey = VK_RBUTTON;
 
 bool gui::get_present_pointer()
 {
@@ -183,7 +108,7 @@ bool gui::get_present_pointer()
 }
 
 // https://www.unknowncheats.me/forum/d3d-tutorials-and-source/75474-generateshader-directx11.html
-HRESULT GenerateShader(ID3D11Device* pD3DDevice, ID3D11PixelShader** pShader, float r, float g, float b)
+HRESULT gui::GenerateShader(ID3D11PixelShader** pShader, float r, float g, float b)
 {
     const char* shaderTemplate = R"(
         struct VS_OUT
@@ -221,21 +146,10 @@ HRESULT GenerateShader(ID3D11Device* pD3DDevice, ID3D11PixelShader** pShader, fl
         return hr;
     }
 
-    hr = pD3DDevice->CreatePixelShader(pBlob->GetBufferPointer(), pBlob->GetBufferSize(), nullptr, pShader);
+    hr = p_device->CreatePixelShader(pBlob->GetBufferPointer(), pBlob->GetBufferSize(), nullptr, pShader);
     pBlob->Release();
 
     return hr;
-}
-
-void UpdateRedShader(float r, float g, float b, float a)
-{
-    if (pShaderRed) pShaderRed->Release();
-    GenerateShader(p_device, &pShaderRed, r, g, b);
-}
-void UpdateBlueShader(float r, float g, float b, float a)
-{
-    if (pShaderBlue) pShaderBlue->Release();
-    GenerateShader(p_device, &pShaderBlue, r, g, b);
 }
 
 void __stdcall hookD3D11DrawIndexedInstanced(ID3D11DeviceContext* p_context, UINT IndexCountPerInstance, UINT InstanceCount, UINT StartIndexLocation, INT BaseVertexLocation, UINT StartInstanceLocation) 
@@ -259,7 +173,7 @@ void __stdcall hookD3D11DrawIndexedInstanced(ID3D11DeviceContext* p_context, UIN
 
         p_device->CreateDepthStencilState(&depthStencilDesc, &m_DepthStencilState);
 
-        GenerateShader(p_device, &pShaderBlue, 0.0f, 0.0f, 1.0f);
+        gui::GenerateShader(&pShaderBlue, 0.0f, 0.0f, 1.0f);
     }
     
     // get stride & vedesc.ByteWidth
@@ -367,7 +281,7 @@ static long __stdcall gui::detour_present(IDXGISwapChain* p_swap_chain, UINT syn
                 printf_s("[+] DrawIndexedInstanced hook created and enabled successfully\n");
             }
 
-            GenerateShader(p_device, &pShaderRed, 1.0f, 0.0f, 0.0f);
+            gui::GenerateShader(&pShaderRed, 1.0f, 0.0f, 0.0f);
             
             gui::ImGuiCustomStyle();
             ImGui_ImplWin32_Init(window);
