@@ -10,7 +10,7 @@
 #include "ext/imgui/imgui_impl_win32.h"
 #include "ext/imgui/imgui_impl_dx11.h"
 
-#include "aimbot.h"
+//#include "aimbot.h"
 #include "wallhack.h"
 
 // OTHER
@@ -18,53 +18,30 @@
 #include <string>
 #include "gui.h"
 #include <iostream>
-#include <unordered_set>
-#include <mutex>
 #include <d3dcompiler.h>
+#include <IL2CPP_Resolver/IL2CPP_Resolver.hpp>
+#include "helper.h"
+#include "functions.h"
 #define SAFE_RELEASE(p)      { if(p) { (p)->Release(); (p)=NULL; } }
 
 WNDPROC oWndProc;
-bool showImGuiMenu = false;
-bool init = false;
 HINSTANCE gui::dll_handle = nullptr;
-
 HWND window = NULL;
-ID3D11Device* p_device = NULL;
-ID3D11DeviceContext* p_context = NULL;
+
+ID3D11Device* pDevice = NULL;
+ID3D11DeviceContext* pContext = NULL;
 ID3D11RenderTargetView* mainRenderTargetView = NULL;
 
-// This is the prototype hook function for is the localPlayer shooting
-uintptr_t moduleBase = (uintptr_t)GetModuleHandleW(L"GameAssembly.dll");
-typedef bool(__fastcall* isShooting)(DWORD64* __this, DWORD64* methodInfo);
-isShooting isShootingg;
-isShooting isShootinggTarget = reinterpret_cast<isShooting>(moduleBase + 0x47d200);
-bool __fastcall detourIsShooting(DWORD64*, DWORD64*)
-{
-    std::cout << "Shoot" << std::endl;
-    return isShootingg(nullptr, nullptr);
-}
-
 typedef long(__stdcall* present)(IDXGISwapChain*, UINT, UINT);
-present p_present;
-present p_present_target;
+present pPresent;
+present pPresentTarget;
 
 // Hooking DrawIndexedInstanced from DX11 for PlayerModel and Cases
-typedef void(__stdcall* ID3D11DrawIndexedInstanced)(ID3D11DeviceContext* pContext, UINT IndexCountPerInstance, UINT InstanceCount, UINT StartIndexLocation, INT BaseVertexLocation, UINT StartInstanceLocation);
+typedef void(__stdcall* ID3D11DrawIndexedInstanced)(ID3D11DeviceContext* p_context, UINT IndexCountPerInstance, UINT InstanceCount, UINT StartIndexLocation, INT BaseVertexLocation, UINT StartInstanceLocation);
 ID3D11DrawIndexedInstanced fnID3D11DrawIndexedInstanced = nullptr;
-ID3D11DrawIndexedInstanced fnID3D11DrawIndexedInstanced_target = nullptr;
-bool drawIndexedInstanced = false;
-bool firstTime = true;
 DWORD_PTR* pDeviceContextVTable = NULL;
 
-// Booleans for different wallhack models
-bool bWallhack = false;
-bool bCases = false;
-bool bShader = false;
-
-// Aimbot
-DWORD Daimkey = VK_RBUTTON;
-
-bool gui::get_present_pointer()
+bool gui::GetPresentPointer()
 {
     std::wstring processName = L"Bachelorarbeit2.0";
 
@@ -73,7 +50,7 @@ bool gui::get_present_pointer()
     sd.BufferCount = 2;
     sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
     sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    sd.OutputWindow = gui::getHandlerByWindowTitle(processName);
+    sd.OutputWindow = Functions::GetHandlerByWindowTitle(processName);
     sd.SampleDesc.Count = 1;
     sd.Windowed = TRUE;
     sd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
@@ -101,7 +78,7 @@ bool gui::get_present_pointer()
         swap_chain->Release();
         device->Release();
         //context->Release();
-        p_present_target = (present)p_vtable[8];
+        pPresentTarget = (present)p_vtable[8];
         return true;
     }
     return false;
@@ -146,24 +123,24 @@ HRESULT gui::GenerateShader(ID3D11PixelShader** pShader, float r, float g, float
         return hr;
     }
 
-    hr = p_device->CreatePixelShader(pBlob->GetBufferPointer(), pBlob->GetBufferSize(), nullptr, pShader);
+    hr = pDevice->CreatePixelShader(pBlob->GetBufferPointer(), pBlob->GetBufferSize(), nullptr, pShader);
     pBlob->Release();
 
     return hr;
 }
 
-void __stdcall hookD3D11DrawIndexedInstanced(ID3D11DeviceContext* p_context, UINT IndexCountPerInstance, UINT InstanceCount, UINT StartIndexLocation, INT BaseVertexLocation, UINT StartInstanceLocation) 
+void __stdcall hkD3D11DrawIndexedInstanced(ID3D11DeviceContext* p_context, UINT IndexCountPerInstance, UINT InstanceCount, UINT StartIndexLocation, INT BaseVertexLocation, UINT StartInstanceLocation) 
 {
-    if (firstTime)
+    if (Vars::firstTime)
     {
-        firstTime = false;
+        Vars::firstTime = false;
         D3D11_DEPTH_STENCIL_DESC depthStencilDescFalse;
         depthStencilDescFalse.DepthEnable = FALSE;
         depthStencilDescFalse.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
         depthStencilDescFalse.DepthFunc = D3D11_COMPARISON_ALWAYS;
         depthStencilDescFalse.StencilEnable = FALSE;
 
-        p_device->CreateDepthStencilState(&depthStencilDescFalse, &m_DepthStencilStateFalse);
+        pDevice->CreateDepthStencilState(&depthStencilDescFalse, &m_DepthStencilStateFalse);
 
         D3D11_DEPTH_STENCIL_DESC depthStencilDesc;
         depthStencilDesc.DepthEnable = TRUE;
@@ -171,7 +148,7 @@ void __stdcall hookD3D11DrawIndexedInstanced(ID3D11DeviceContext* p_context, UIN
         depthStencilDesc.DepthFunc = D3D11_COMPARISON_GREATER_EQUAL;
         depthStencilDesc.StencilEnable = FALSE;
 
-        p_device->CreateDepthStencilState(&depthStencilDesc, &m_DepthStencilState);
+        pDevice->CreateDepthStencilState(&depthStencilDesc, &m_DepthStencilState);
 
         gui::GenerateShader(&pShaderBlue, 0.0f, 0.0f, 1.0f);
     }
@@ -203,16 +180,15 @@ void __stdcall hookD3D11DrawIndexedInstanced(ID3D11DeviceContext* p_context, UIN
     seenParams.insert(paramsModelInstanced);
     g_propertiesModels.unlock();
 
-    if (!drawIndexedInstanced)
+    if (!Vars::drawIndexedInstanced)
     {
-        std::cout << "[+] DrawIndexedInstanced Hooked succesfully" << std::endl;
-        drawIndexedInstanced = true;
+        Vars::drawIndexedInstanced = true;
         // Set this for the first time its called
         currentParams = paramsModelInstanced;
     }
     auto current = seenParams.find(currentParams);
 
-    if ((wallhackParams.find(paramsModelInstanced) != wallhackParams.end()) && bShader)
+    if ((wallhackParams.find(paramsModelInstanced) != wallhackParams.end()) && Vars::shader)
     {
         p_context->OMGetDepthStencilState(&m_origDepthStencilState, &pStencilRef);
 
@@ -230,13 +206,13 @@ void __stdcall hookD3D11DrawIndexedInstanced(ID3D11DeviceContext* p_context, UIN
         };
         bool drawn = false;
 
-        if (bWallhack && paramsModelInstanced.stride == 40 && paramsModelInstanced.vedesc_ByteWidth == 1308520)
+        if (Vars::wallhack && paramsModelInstanced.stride == 40 && paramsModelInstanced.vedesc_ByteWidth == 1308520)
         {
             // PlayerModel
             applyWallhackAndChams(pShaderRed, pShaderBlue);
             drawn = true;
         }
-        else if (bCases && paramsModelInstanced.stride == 40 && paramsModelInstanced.vedesc_ByteWidth == 178560)
+        else if (Vars::cases && paramsModelInstanced.stride == 40 && paramsModelInstanced.vedesc_ByteWidth == 178560)
         {
             // Cases
             applyWallhackAndChams(pShaderRed, pShaderBlue);
@@ -252,29 +228,31 @@ void __stdcall hookD3D11DrawIndexedInstanced(ID3D11DeviceContext* p_context, UIN
     fnID3D11DrawIndexedInstanced(p_context, IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
 }
 
-static long __stdcall gui::detour_present(IDXGISwapChain* p_swap_chain, UINT sync_interval, UINT flags) {
-    if (!init) {
-        if (SUCCEEDED(p_swap_chain->GetDevice(__uuidof(ID3D11Device), (void**)&p_device)))
+static long __stdcall gui::hkPresent(IDXGISwapChain* p_swap_chain, UINT sync_interval, UINT flags) {
+    
+    void* m_pThisThread = IL2CPP::Thread::Attach(IL2CPP::Domain::Get());
+
+    if (!Vars::init) {
+        if (SUCCEEDED(p_swap_chain->GetDevice(__uuidof(ID3D11Device), (void**)&pDevice)))
         {
-            p_device->GetImmediateContext(&p_context);
+            pDevice->GetImmediateContext(&pContext);
             DXGI_SWAP_CHAIN_DESC sd;
             p_swap_chain->GetDesc(&sd);
             ImGui::CreateContext();
             window = sd.OutputWindow;
             ID3D11Texture2D* pBackBuffer;
             p_swap_chain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&pBackBuffer);
-            p_device->CreateRenderTargetView(pBackBuffer, NULL, &mainRenderTargetView);
+            pDevice->CreateRenderTargetView(pBackBuffer, NULL, &mainRenderTargetView);
             pBackBuffer->Release();
             oWndProc = (WNDPROC)SetWindowLongPtr(window, GWLP_WNDPROC, (LONG_PTR)gui::WndProc);
 
-            pDeviceContextVTable = (DWORD_PTR*)p_context;
+            pDeviceContextVTable = (DWORD_PTR*)pContext;
             pDeviceContextVTable = (DWORD_PTR*)pDeviceContextVTable[0];
-            fnID3D11DrawIndexedInstanced_target = (ID3D11DrawIndexedInstanced)pDeviceContextVTable[20];
 
-            if (MH_CreateHook(reinterpret_cast<void**>(fnID3D11DrawIndexedInstanced_target), &hookD3D11DrawIndexedInstanced, reinterpret_cast<void**>(&fnID3D11DrawIndexedInstanced)) != MH_OK) {
+            if (MH_CreateHook(reinterpret_cast<void**>((ID3D11DrawIndexedInstanced)pDeviceContextVTable[20]), &hkD3D11DrawIndexedInstanced, reinterpret_cast<void**>(&fnID3D11DrawIndexedInstanced)) != MH_OK) {
                 printf_s("Failed to create DrawIndexedInstanced hook\n");
             }
-            else if (MH_EnableHook(fnID3D11DrawIndexedInstanced_target) != MH_OK) {
+            else if (MH_EnableHook((ID3D11DrawIndexedInstanced)pDeviceContextVTable[20]) != MH_OK) {
                 printf_s("Failed to enable DrawIndexedInstanced hook\n");
             }
             else {
@@ -283,36 +261,39 @@ static long __stdcall gui::detour_present(IDXGISwapChain* p_swap_chain, UINT syn
 
             gui::GenerateShader(&pShaderRed, 1.0f, 0.0f, 0.0f);
             
-            gui::ImGuiCustomStyle();
+            Functions::ImGuiCustomStyle();
             ImGui_ImplWin32_Init(window);
-            ImGui_ImplDX11_Init(p_device, p_context);
-            init = true;
+            ImGui_ImplDX11_Init(pDevice, pContext);
+            Vars::init = true;
         }
         else
-            return p_present(p_swap_chain, sync_interval, flags);
+            return pPresent(p_swap_chain, sync_interval, flags);
     }
+
+    pContext->RSGetViewports(&Vars::vps, &Vars::viewport);
+    Vars::screenSize = { Vars::viewport.Width, Vars::viewport.Height };
+    Vars::screenCenter = { Vars::viewport.Width / 2.0f, Vars::viewport.Height / 2.0f };
 
     ImGui_ImplWin32_NewFrame();
     ImGui_ImplDX11_NewFrame();
-
     ImGui::NewFrame();
 
-    if (showImGuiMenu) {
+    if (Vars::showImGuiMenu) {
         ImGui::Begin("Cheat Menu");
         ImGui::Text("with F1 show/hide cheat menu");
 
         if (ImGui::TreeNode("ESP"))
         {
-            // Checkbox to enable wallhack
-            if (ImGui::Checkbox("Wallhack", &bWallhack))
+            // Checkbox to enable Players
+            if (ImGui::Checkbox("Players", &Vars::wallhack))
             {
-                bShader = bWallhack || bCases;
+                Vars::shader = Vars::wallhack || Vars::cases;
             }
 
             // Checkbox to enable cases
-            if (ImGui::Checkbox("Cases", &bCases))
+            if (ImGui::Checkbox("Cases", &Vars::cases))
             {
-                bShader = bWallhack || bCases;
+                Vars::shader = Vars::wallhack || Vars::cases;
             }
             
             // Color edit for wallhack and visible models
@@ -329,10 +310,20 @@ static long __stdcall gui::detour_present(IDXGISwapChain* p_swap_chain, UINT syn
 
         if (ImGui::TreeNode("Aimbot"))
         {
-            static bool enableAimbot = false;
-            static float aimbotFOV = 0.5f;
-            ImGui::Checkbox("Enable Aimbot", &enableAimbot);
-            ImGui::SliderFloat("FOV", &aimbotFOV, 0.0f, 1.0f, "%.1f");
+            ImGui::Checkbox("Aim", &Vars::aimbot);
+
+            ImGui::Checkbox("Aim FOV", &Vars::fovCheck);
+            if (Vars::fovCheck)
+            {
+                ImGui::SliderFloat("Aimbot FOV", &Vars::aimbotFov, 0, 300.0f);
+            }
+
+            ImGui::SliderFloat("Aimbot Smoothing", &Vars::smooth, 1, 10.0f);
+
+            ImGui::Combo("Aim Bone", &Vars::boneSelected, Vars::bones, IM_ARRAYSIZE(Vars::bones));
+            if (ImGui::Combo("Aim Key", &Vars::selectedKeyIndex, Vars::keyNames, IM_ARRAYSIZE(Vars::keyNames))) {
+                Vars::aimkey = Vars::keyValues[Vars::selectedKeyIndex];
+            }
 
             /*if (ImGui::TreeNode("AI Aimbot"))
             {
@@ -341,44 +332,89 @@ static long __stdcall gui::detour_present(IDXGISwapChain* p_swap_chain, UINT syn
             ImGui::TreePop();
         }
 
-        /*if (ImGui::TreeNode("Misc"))
+        if (ImGui::TreeNode("Misc"))
         {
-            static bool playerIsShooting = false;
-            static bool enableInfiniteAmmo = false;
-            ImGui::Checkbox("Show if Player is Shooting", &playerIsShooting);
-            ImGui::Checkbox("Enable Infinite Ammo", &enableInfiniteAmmo);
-
-            if (playerIsShooting)
+            ImGui::Checkbox("Fov Changer", &Vars::fovChanger);
+            if (Vars::fovChanger)
             {
-                std::cout << "moduleBase: " << moduleBase << std::endl;
-                std::cout << "isShootingg: " << isShootingg << std::endl;
-                std::cout << "isShootinggTarget: " << isShootinggTarget << std::endl;
-                std::cout << "Trying to enable the hook" << std::endl;
-                MH_STATUS ttstatus = MH_EnableHook(isShootinggTarget);
-                if (ttstatus != MH_OK)
-                {
-                    std::string ssStatus = MH_StatusToString(ttstatus);
-                    std::cout << ssStatus << std::endl;
-                    return 1;
-                }
-                std::cout << "Hook enabled" << std::endl;
-            }
-            if (enableInfiniteAmmo)
-            {
-
+                ImGui::SliderFloat("##CamFOV", &Vars::cameraFOV, 20, 180, "Camera FOV: %.0f");
             }
             ImGui::TreePop();
-        }*/
+        }
         ImGui::End();
+    }
+    // NOTE: hier kommt der code der ausgeführt wird wenn variablen sich im menü ändern
+    // NOTE: dies evtl. in eine eigene Funktion packen
+    if (Vars::fovChanger)
+    {
+        Unity::CCamera* CameraMain = Unity::Camera::GetMain();
+        if (CameraMain != nullptr)
+        {
+            CameraMain->CallMethodSafe<void*>("set_fieldOfView", Vars::cameraFOV);
+        }
+    }
+    if (Vars::aimbot)
+    {
+        for (int i = 0; i < Vars::playerList.size(); i++)
+        {
+            Unity::CGameObject* currentPlayer = Vars::playerList[i];
+            if (!currentPlayer) continue;
+
+            Unity::CTransform* playerTransform = currentPlayer->GetTransform();
+            if (!playerTransform) continue;
+
+            Unity::Vector3 targetPos;
+            Unity::CTransform* transform = nullptr;
+            Unity::Vector2 inView;
+            if (Vars::boneSelected == 0) {
+                transform = playerTransform->FindChild(Vars::marineHeadPath);
+                if (transform) {
+                    targetPos = transform->GetPosition();
+                    if (Functions::WorldToScreen(targetPos, inView)) {
+                        Functions::ExecAimbot(currentPlayer, inView);
+                    }
+                }
+
+                transform = playerTransform->FindChild(Vars::soldierHeadPath);
+                if (transform) {
+                    targetPos = transform->GetPosition();
+                    if (Functions::WorldToScreen(targetPos, inView)) {
+                        Functions::ExecAimbot(currentPlayer, inView);
+                    }
+                }
+            }
+            else if (Vars::boneSelected == 1) {
+                transform = playerTransform->FindChild(Vars::marineChestPath);
+                if (transform) {
+                    targetPos = transform->GetPosition();
+                    if (Functions::WorldToScreen(targetPos, inView)) {
+                        Functions::ExecAimbot(currentPlayer, inView);
+                    }
+                }
+
+                transform = playerTransform->FindChild(Vars::soldierChestPath);
+                if (transform) {
+                    targetPos = transform->GetPosition();
+                    if (Functions::WorldToScreen(targetPos, inView)) {
+                        Functions::ExecAimbot(currentPlayer, inView);
+                    }
+                }
+            }
+        }
+    }
+    if (Vars::fovCheck) {
+        ImGui::GetForegroundDrawList()->AddCircle(ImVec2(Vars::screenCenter.x, Vars::screenCenter.y), Vars::aimbotFov, ImColor(255, 255, 255), 360);
     }
 
     ImGui::EndFrame();
     ImGui::Render();
 
-    p_context->OMSetRenderTargets(1, &mainRenderTargetView, NULL);
+    pContext->OMSetRenderTargets(1, &mainRenderTargetView, NULL);
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
-    return p_present(p_swap_chain, sync_interval, flags);
+    IL2CPP::Thread::Detach(m_pThisThread);
+
+    return pPresent(p_swap_chain, sync_interval, flags);
 }
 
 DWORD __stdcall gui::EjectThread(LPVOID lpParameter) {
@@ -389,7 +425,7 @@ DWORD __stdcall gui::EjectThread(LPVOID lpParameter) {
     return 0;
 }
 
-void setupWallhack() {
+void SetupWallhack() {
     propertiesModel wallhackParamsItem;
     // Case
     wallhackParamsItem.stride = 40;
@@ -406,17 +442,61 @@ void setupWallhack() {
     printf_s("[+] Wallhack params done\n");
 }
 
-bool AreHooksIntact()
+// NOTE: WICHTIG, da sich bei jedem start des spiels irgendwie das offset der kamera ändert. Mit dieser funktion können wir dynamisch das offset holen
+bool FindOffsets() {
+    Unity::il2cppClass* CameraClass = IL2CPP::Class::Find("UnityEngine.Camera");
+    Offsets::setFieldOfView = (uintptr_t)IL2CPP::Class::Utils::GetMethodPointer(CameraClass, "set_fieldOfView");
+    return true;
+}
+
+bool PlayerCache()
 {
-    // Check if hooks are still valid
-    return (MH_EnableHook(MH_ALL_HOOKS) == MH_OK);
+    while (true)
+    {
+        void* m_pThisThread = IL2CPP::Thread::Attach(IL2CPP::Domain::Get());
+        Vars::localPlayer = NULL;
+        Vars::playerList.clear();
+        auto list = Unity::Object::FindObjectsOfType<Unity::CComponent>("UnityEngine.Rigidbody");
+        for (int i = 0; i < list->m_uMaxLength; i++)
+        {
+            if (!list->operator[](i))
+                continue;
+            auto obj = list->operator[](i);
+            if (!obj)
+                continue;
+
+            std::string objectname = obj->GetName()->ToString();
+            if (objectname.find("[Player:") == 0)
+            {
+                Vars::playerList.push_back(list->operator[](i)->GetGameObject());
+            }
+        }
+        IL2CPP::Thread::Detach(m_pThisThread);
+        Sleep(1000);
+    }
 }
 
 // main code
 int WINAPI gui::RunGUI()
 {   
-    printf_s("RUNGUI\n");
-    if (!gui::get_present_pointer())
+    // TODO: wenn später die konsole entfernt wird, dann diese if überarbeiten
+    if (IL2CPP::Initialize(true))
+    {
+        printf("[DEBUG] Il2cpp API initialized\n");
+    }
+    else
+    {
+        printf("[DEBUG] Il2cpp API initialized failed, quitting\n");
+        Sleep(500);
+        exit(0);
+    }
+    Vars::Base = (uintptr_t)GetModuleHandleA(NULL);
+    Vars::GameAssembly = (uintptr_t)GetModuleHandleA("GameAssembly.dll");
+    Vars::UnityPlayer = (uintptr_t)GetModuleHandleA("UnityPlayer.dll");
+    IL2CPP::Callback::Initialize();
+    FindOffsets();
+
+    if (!gui::GetPresentPointer())
     {
         return 1;
     }
@@ -427,34 +507,27 @@ int WINAPI gui::RunGUI()
         return 1;
     }
 
-    setupWallhack();
+    SetupWallhack();
 
-    if (MH_CreateHook(reinterpret_cast<void**>(p_present_target), &gui::detour_present, reinterpret_cast<void**>(&p_present)) != MH_OK) {
+    if (MH_CreateHook(reinterpret_cast<void**>(pPresentTarget), &gui::hkPresent, reinterpret_cast<void**>(&pPresent)) != MH_OK) {
         return 1;
     }
-    if (MH_EnableHook(p_present_target) != MH_OK) {
+    if (MH_EnableHook(pPresentTarget) != MH_OK) {
         return 1;
     }
 
-    //if (MH_CreateHookApiEx(L"user32", "PeekMessageA", &detourPeekMessageA, reinterpret_cast<void**>(&pPeekMessageA), reinterpret_cast<void**>(&pPeekMessageATarget)) != MH_OK) {
-    //    return 1;
-    //}
-    
-    MH_STATUS testStatus = MH_CreateHook(isShootinggTarget, &detourIsShooting, reinterpret_cast<LPVOID*>(&isShootingg));
-    if (testStatus != MH_OK)
-    {
-        std::string sStatus = MH_StatusToString(testStatus);
-        std::cout << sStatus << std::endl;
+    if (MH_CreateHook(reinterpret_cast<void**>(Offsets::setFieldOfView), &Functions::hkSetFieldOfView, reinterpret_cast<void**>(&Functions::OrigSetFieldOfView)) != MH_OK) {
         return 1;
     }
+    if (MH_EnableHook(reinterpret_cast<void**>(Offsets::setFieldOfView)) != MH_OK) {
+        return 1;
+    }
+
+    CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)PlayerCache, NULL, NULL, NULL);
 
     while (true) {
         Sleep(50);
-        /*bool test = AreHooksIntact();
-        std::cout << "Hooks Intact: " << test << std::endl;*/
     }
-
-    std::cin.get();
 
     // cleanup
     if (MH_DisableHook(MH_ALL_HOOKS) != MH_OK) {
@@ -469,8 +542,8 @@ int WINAPI gui::RunGUI()
     ImGui::DestroyContext();
 
     if (mainRenderTargetView) { mainRenderTargetView->Release(); mainRenderTargetView = NULL; }
-    if (p_context) { p_context->Release(); p_context = NULL; }
-    if (p_device) { p_device->Release(); p_device = NULL; }
+    if (pContext) { pContext->Release(); pContext = NULL; }
+    if (pDevice) { pDevice->Release(); pDevice = NULL; }
     SetWindowLongPtr(window, GWLP_WNDPROC, (LONG_PTR)(oWndProc));
 
     CreateThread(0, 0, gui::EjectThread, 0, 0, 0);
@@ -492,61 +565,24 @@ LRESULT __stdcall gui::WndProc(const HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
     {
         if (wParam == VK_F1)
         {
-            showImGuiMenu = !showImGuiMenu;
+            Vars::showImGuiMenu = !Vars::showImGuiMenu;
         }
     }
 
-    if (showImGuiMenu)
+    if (Vars::showImGuiMenu)
     {
+        ClipCursor(NULL);
         io.MouseDrawCursor = true;
         ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam);
         return true;
     }
     else {
         io.MouseDrawCursor = false;
+        RECT rect;
+        GetClientRect(hWnd, &rect);
+        ClipCursor(&rect);
     }
 
     return CallWindowProc(oWndProc, hWnd, uMsg, wParam, lParam);
 }
-
-HWND gui::getHandlerByWindowTitle(const std::wstring& windowTitle) {
-    HWND window = FindWindowW(NULL, windowTitle.c_str());
-    if (window != NULL) {
-        DWORD processId;
-        DWORD threadId = GetWindowThreadProcessId(window, &processId);
-        if (threadId != 0) {
-            return window;
-        }
-        else {
-            return window;
-        }
-    }
-    else {
-        return window;
-    }
-    return window;
-}
-
-void gui::ImGuiCustomStyle() {
-    ImGuiStyle& style = ImGui::GetStyle();
-
-    style.WindowPadding = ImVec2(15, 15);
-    style.WindowRounding = 5.0f;
-    style.FramePadding = ImVec2(5, 5);
-    style.FrameRounding = 4.0f;
-    style.ItemSpacing = ImVec2(12, 8);
-    style.ScrollbarSize = 15.0f;
-    style.ScrollbarRounding = 9.0f;
     
-    style.Colors[ImGuiCol_Text] = ImVec4(0.80f, 0.80f, 0.83f, 1.00f);
-    style.Colors[ImGuiCol_WindowBg] = ImVec4(0.06f, 0.05f, 0.07f, 1.00f);
-    style.Colors[ImGuiCol_ChildBg] = ImVec4(0.07f, 0.07f, 0.09f, 1.00f);
-    style.Colors[ImGuiCol_PopupBg] = ImVec4(0.07f, 0.07f, 0.09f, 1.00f);
-    style.Colors[ImGuiCol_Border] = ImVec4(0.80f, 0.80f, 0.83f, 0.88f);
-    style.Colors[ImGuiCol_FrameBg] = ImVec4(0.10f, 0.09f, 0.12f, 1.00f);
-    style.Colors[ImGuiCol_FrameBgHovered] = ImVec4(0.24f, 0.23f, 0.29f, 1.00f);
-    style.Colors[ImGuiCol_FrameBgActive] = ImVec4(0.56f, 0.56f, 0.58f, 1.00f);
-    style.Colors[ImGuiCol_TitleBg] = ImVec4(0.10f, 0.09f, 0.12f, 1.00f);
-    style.Colors[ImGuiCol_TitleBgActive] = ImVec4(0.07f, 0.07f, 0.09f, 1.00f);
-    style.Colors[ImGuiCol_MenuBarBg] = ImVec4(0.10f, 0.09f, 0.12f, 1.00f);
-}

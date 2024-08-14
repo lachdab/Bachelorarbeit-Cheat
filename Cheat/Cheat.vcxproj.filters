@@ -51,13 +51,100 @@
     <ClInclude Include="gui.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
-    <ClInclude Include="il2cpp.h">
-      <Filter>Headerdateien</Filter>
-    </ClInclude>
     <ClInclude Include="wallhack.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
     <ClInclude Include="aimbot.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="il2cpp.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="helper.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="ext\IL2CPP_Resolver\API\Callback.hpp">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="ext\IL2CPP_Resolver\API\Class.hpp">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="ext\IL2CPP_Resolver\API\Domain.hpp">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="ext\IL2CPP_Resolver\API\ResolveCall.hpp">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="ext\IL2CPP_Resolver\API\String.hpp">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="ext\IL2CPP_Resolver\API\Thread.hpp">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="ext\IL2CPP_Resolver\Unity\API\Camera.hpp">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="ext\IL2CPP_Resolver\Unity\API\Component.hpp">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="ext\IL2CPP_Resolver\Unity\API\GameObject.hpp">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="ext\IL2CPP_Resolver\Unity\API\LayerMask.hpp">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="ext\IL2CPP_Resolver\Unity\API\Object.hpp">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="ext\IL2CPP_Resolver\Unity\API\Rigidbody.hpp">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="ext\IL2CPP_Resolver\Unity\API\Transform.hpp">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="ext\IL2CPP_Resolver\Unity\Structures\Engine.hpp">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="ext\IL2CPP_Resolver\Unity\Structures\il2cpp.hpp">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="ext\IL2CPP_Resolver\Unity\Structures\il2cppArray.hpp">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="ext\IL2CPP_Resolver\Unity\Structures\il2cppDictionary.hpp">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="ext\IL2CPP_Resolver\Unity\Structures\System_String.hpp">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="ext\IL2CPP_Resolver\Unity\Defines.hpp">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="ext\IL2CPP_Resolver\Unity\Obfuscators.hpp">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="ext\IL2CPP_Resolver\Utils\Hash.hpp">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="ext\IL2CPP_Resolver\Utils\Helper.hpp">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="ext\IL2CPP_Resolver\Utils\VTable.hpp">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="ext\IL2CPP_Resolver\Data.hpp">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="ext\IL2CPP_Resolver\Defines.hpp">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="ext\IL2CPP_Resolver\IL2CPP_Resolver.hpp">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="ext\IL2CPP_Resolver\SystemTypeCache.hpp">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="functions.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
   </ItemGroup>
