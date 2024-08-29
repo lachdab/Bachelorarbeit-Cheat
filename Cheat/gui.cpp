@@ -10,7 +10,7 @@
 #include "ext/imgui/imgui_impl_win32.h"
 #include "ext/imgui/imgui_impl_dx11.h"
 
-//#include "aimbot.h"
+#include "aimbot.h"
 #include "wallhack.h"
 
 // OTHER
@@ -28,8 +28,6 @@ WNDPROC oWndProc;
 HINSTANCE gui::dll_handle = nullptr;
 HWND window = NULL;
 
-ID3D11Device* pDevice = NULL;
-ID3D11DeviceContext* pContext = NULL;
 ID3D11RenderTargetView* mainRenderTargetView = NULL;
 
 typedef long(__stdcall* present)(IDXGISwapChain*, UINT, UINT);
@@ -59,7 +57,7 @@ bool gui::GetPresentPointer()
     ID3D11Device* device;
 
     const D3D_FEATURE_LEVEL feature_levels[] = { D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_0, };
-    // creation of the dx11 device and swap chain
+    // Creation of the dx11 device and swap chain
     if (D3D11CreateDeviceAndSwapChain(
         NULL,
         D3D_DRIVER_TYPE_HARDWARE,
@@ -123,7 +121,7 @@ HRESULT gui::GenerateShader(ID3D11PixelShader** pShader, float r, float g, float
         return hr;
     }
 
-    hr = pDevice->CreatePixelShader(pBlob->GetBufferPointer(), pBlob->GetBufferSize(), nullptr, pShader);
+    hr = Vars::pDevice->CreatePixelShader(pBlob->GetBufferPointer(), pBlob->GetBufferSize(), nullptr, pShader);
     pBlob->Release();
 
     return hr;
@@ -140,7 +138,7 @@ void __stdcall hkD3D11DrawIndexedInstanced(ID3D11DeviceContext* p_context, UINT 
         depthStencilDescFalse.DepthFunc = D3D11_COMPARISON_ALWAYS;
         depthStencilDescFalse.StencilEnable = FALSE;
 
-        pDevice->CreateDepthStencilState(&depthStencilDescFalse, &m_DepthStencilStateFalse);
+        Vars::pDevice->CreateDepthStencilState(&depthStencilDescFalse, &m_DepthStencilStateFalse);
 
         D3D11_DEPTH_STENCIL_DESC depthStencilDesc;
         depthStencilDesc.DepthEnable = TRUE;
@@ -148,7 +146,7 @@ void __stdcall hkD3D11DrawIndexedInstanced(ID3D11DeviceContext* p_context, UINT 
         depthStencilDesc.DepthFunc = D3D11_COMPARISON_GREATER_EQUAL;
         depthStencilDesc.StencilEnable = FALSE;
 
-        pDevice->CreateDepthStencilState(&depthStencilDesc, &m_DepthStencilState);
+        Vars::pDevice->CreateDepthStencilState(&depthStencilDesc, &m_DepthStencilState);
 
         gui::GenerateShader(&pShaderBlue, 0.0f, 0.0f, 1.0f);
     }
@@ -233,20 +231,20 @@ static long __stdcall gui::hkPresent(IDXGISwapChain* p_swap_chain, UINT sync_int
     void* m_pThisThread = IL2CPP::Thread::Attach(IL2CPP::Domain::Get());
 
     if (!Vars::init) {
-        if (SUCCEEDED(p_swap_chain->GetDevice(__uuidof(ID3D11Device), (void**)&pDevice)))
+        if (SUCCEEDED(p_swap_chain->GetDevice(__uuidof(ID3D11Device), (void**)&Vars::pDevice)))
         {
-            pDevice->GetImmediateContext(&pContext);
+            Vars::pDevice->GetImmediateContext(&Vars::pContext);
             DXGI_SWAP_CHAIN_DESC sd;
             p_swap_chain->GetDesc(&sd);
             ImGui::CreateContext();
             window = sd.OutputWindow;
             ID3D11Texture2D* pBackBuffer;
             p_swap_chain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&pBackBuffer);
-            pDevice->CreateRenderTargetView(pBackBuffer, NULL, &mainRenderTargetView);
+            Vars::pDevice->CreateRenderTargetView(pBackBuffer, NULL, &mainRenderTargetView);
             pBackBuffer->Release();
             oWndProc = (WNDPROC)SetWindowLongPtr(window, GWLP_WNDPROC, (LONG_PTR)gui::WndProc);
 
-            pDeviceContextVTable = (DWORD_PTR*)pContext;
+            pDeviceContextVTable = (DWORD_PTR*)Vars::pContext;
             pDeviceContextVTable = (DWORD_PTR*)pDeviceContextVTable[0];
 
             if (MH_CreateHook(reinterpret_cast<void**>((ID3D11DrawIndexedInstanced)pDeviceContextVTable[20]), &hkD3D11DrawIndexedInstanced, reinterpret_cast<void**>(&fnID3D11DrawIndexedInstanced)) != MH_OK) {
@@ -263,14 +261,15 @@ static long __stdcall gui::hkPresent(IDXGISwapChain* p_swap_chain, UINT sync_int
             
             Functions::ImGuiCustomStyle();
             ImGui_ImplWin32_Init(window);
-            ImGui_ImplDX11_Init(pDevice, pContext);
+            ImGui_ImplDX11_Init(Vars::pDevice, Vars::pContext);
+            Vars::g_pSwapChain = p_swap_chain;
             Vars::init = true;
         }
         else
             return pPresent(p_swap_chain, sync_interval, flags);
     }
 
-    pContext->RSGetViewports(&Vars::vps, &Vars::viewport);
+    Vars::pContext->RSGetViewports(&Vars::vps, &Vars::viewport);
     Vars::screenSize = { Vars::viewport.Width, Vars::viewport.Height };
     Vars::screenCenter = { Vars::viewport.Width / 2.0f, Vars::viewport.Height / 2.0f };
 
@@ -279,137 +278,155 @@ static long __stdcall gui::hkPresent(IDXGISwapChain* p_swap_chain, UINT sync_int
     ImGui::NewFrame();
 
     if (Vars::showImGuiMenu) {
-        ImGui::Begin("Cheat Menu");
-        ImGui::Text("with F1 show/hide cheat menu");
-
-        if (ImGui::TreeNode("ESP"))
+        if (ImGui::Begin("Cheat Menu", nullptr, ImGuiWindowFlags_NoResize))
         {
-            // Checkbox to enable Players
-            if (ImGui::Checkbox("Players", &Vars::wallhack))
+            ImGui::Text("with F1 show/hide cheat menu");
+            ImGui::SetWindowPos(ImVec2(232, 140), ImGuiCond_Once);
+            ImGui::SetWindowSize(ImVec2(591, 546), ImGuiCond_Once);
+            if (ImGui::Button("ESP"))
             {
-                Vars::shader = Vars::wallhack || Vars::cases;
+                Vars::tab = 0;
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Aimbot"))
+            {
+                Vars::tab = 1;
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("AI Aimbot"))
+            {
+                Vars::tab = 2;
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Misc"))
+            {
+                Vars::tab = 3;
+            }
+            static char modelPathBuffer[256];
+            static bool modelPathInitialized = false;
+            std::string previewValue;
+            if (!modelPathInitialized) {
+                strncpy_s(modelPathBuffer, AI::modelPath.c_str(), sizeof(modelPathBuffer) - 1);
+                modelPathBuffer[sizeof(modelPathBuffer) - 1] = '\0';
+                modelPathInitialized = true;
             }
 
-            // Checkbox to enable cases
-            if (ImGui::Checkbox("Cases", &Vars::cases))
+            switch (Vars::tab)
             {
-                Vars::shader = Vars::wallhack || Vars::cases;
-            }
-            
-            // Color edit for wallhack and visible models
-            if (ImGui::ColorEdit4("Wallhack Color", redColor))
-            {
-                UpdateRedShader(redColor[0], redColor[1], redColor[2], redColor[3]);
-            }
-            if (ImGui::ColorEdit4("Visible Color", blueColor))
-            {
-                UpdateBlueShader(blueColor[0], blueColor[1], blueColor[2], blueColor[3]);
-            }
-            ImGui::TreePop();
-        }
+            case 0:
+                // Checkbox to enable Players
+                if (ImGui::Checkbox("Enable Players", &Vars::wallhack))
+                {
+                    Vars::shader = Vars::wallhack || Vars::cases;
+                }
+                // Checkbox to enable cases
+                if (ImGui::Checkbox("Enable Cases", &Vars::cases))
+                {
+                    Vars::shader = Vars::wallhack || Vars::cases;
+                }
+                // Color edit for wallhack and visible models
+                if (ImGui::ColorEdit4("Wallhack Color", redColor))
+                {
+                    UpdateRedShader(redColor[0], redColor[1], redColor[2], redColor[3]);
+                }
+                if (ImGui::ColorEdit4("Visible Color", blueColor))
+                {
+                    UpdateBlueShader(blueColor[0], blueColor[1], blueColor[2], blueColor[3]);
+                }
+                break;
+            case 1:
+                ImGui::Checkbox("Enable", &Vars::aimbot);
 
-        if (ImGui::TreeNode("Aimbot"))
-        {
-            ImGui::Checkbox("Aim", &Vars::aimbot);
+                ImGui::Checkbox("Aim FOV", &Vars::fovCheck);
+                if (Vars::fovCheck)
+                {
+                    ImGui::SliderFloat("Aimbot FOV", &Vars::aimbotFov, 0, 300.0f);
+                }
 
-            ImGui::Checkbox("Aim FOV", &Vars::fovCheck);
-            if (Vars::fovCheck)
-            {
-                ImGui::SliderFloat("Aimbot FOV", &Vars::aimbotFov, 0, 300.0f);
+                ImGui::SliderFloat("Aimbot Smoothing", &Vars::smooth, 1, 10.0f);
+
+                ImGui::Combo("Aim Bone", &Vars::boneSelected, Vars::bones, IM_ARRAYSIZE(Vars::bones));
+                if (ImGui::Combo("Aim Key", &Vars::selectedKeyIndex, Vars::keyNames, IM_ARRAYSIZE(Vars::keyNames)))
+                {
+                    Vars::aimkey = Vars::keyValues[Vars::selectedKeyIndex];
+                }
+                break;
+            case 2:
+                ImGui::Checkbox("Enable", &AI::enableAIAimbot);
+                ImGui::Checkbox("Auto Aim", &AI::autoAim);
+                ImGui::SliderFloat("Aim Speed", &ExtendedAI::aimSpeed, 0.01f, 1.0f, "%.2f");
+                ImGui::SliderFloat("Human Error Chance", &ExtendedAI::humanErrorChance, 0.0f, 1.0f, "%.2f");
+                ImGui::SliderFloat("Perfect Aim Chance", &ExtendedAI::perfectAimChance, 0.0f, 0.1f, "%.3f");
+                ImGui::SliderFloat("Max Human Error (pixels)", &ExtendedAI::maxHumanError, 0.0f, 20.0f, "%.1f");
+                for (int i = 0; i < IM_ARRAYSIZE(AI::classNames); i++) {
+                    if (AI::classSelected[i]) {
+                        if (!previewValue.empty()) previewValue += ", ";
+                        previewValue += AI::classNames[i];
+                    }
+                }
+                if (previewValue.empty()) previewValue = "Select Classes";
+                if (ImGui::BeginCombo("Classes to Show", previewValue.c_str())) {
+                    for (int i = 0; i < IM_ARRAYSIZE(AI::classNames); i++) {
+                        bool isSelected = AI::classSelected[i];
+                        if (ImGui::Selectable(AI::classNames[i], &isSelected)) {
+                            AI::classSelected[i] = isSelected;
+                        }
+                    }
+                    ImGui::EndCombo();
+                }
+                AI::classesToShow.clear();
+                for (int i = 0; i < IM_ARRAYSIZE(AI::classNames); i++) {
+                    if (AI::classSelected[i]) {
+                        AI::classesToShow.push_back(AI::classNames[i]);
+                    }
+                }
+
+                ImGui::Checkbox("Enable Cuda", &AI::enableCuda);
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("If you have an Nvidia graphics card, you can ignore this checkbox. If not, uncheck this box.");
+
+                if (ImGui::InputText("Model Path", modelPathBuffer, sizeof(modelPathBuffer))) {
+                    AI::modelPath = modelPathBuffer;
+                    AI::pathChanged = true;
+                }
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("Path to the AI model. Changes require a restart of the aimbot.");
+
+                if (ImGui::CollapsingHeader("for more FPS"))
+                {
+                    ImGui::Checkbox("Enable Frame Limit", &AI::enableFrameLimit);
+                    if (ImGui::IsItemHovered())
+                        ImGui::SetTooltip("Limits the frequency of AI inference to save resources. May affect response time and accuracy.");
+
+                    ImGui::SliderInt("Inference Interval", &AI::inferenceInterval, 1, 60);
+                    if (ImGui::IsItemHovered())
+                    {
+                        ImGui::SetTooltip("Number of frames between AI inferences. Higher values save resources but may increase response time and affect accuracy.");
+                        ImGui::SetTooltip("Inference Interval:\n"
+                            "1 = Every frame (fastest response, highest CPU usage)\n"
+                            "30 = Every half second at 60 FPS\n"
+                            "60 = Once per second at 60 FPS\n"
+                            "Recommended: 5-15 for good balance");
+                    }
+                }
+                break;
+            case 3:
+                ImGui::Checkbox("Enable Fov Changer", &Vars::fovChanger);
+                if (Vars::fovChanger)
+                {
+                    ImGui::SliderFloat("##CamFOV", &Vars::cameraFOV, 20, 180, "Camera FOV: %.0f");
+                }
+                break;
             }
-
-            ImGui::SliderFloat("Aimbot Smoothing", &Vars::smooth, 1, 10.0f);
-
-            ImGui::Combo("Aim Bone", &Vars::boneSelected, Vars::bones, IM_ARRAYSIZE(Vars::bones));
-            if (ImGui::Combo("Aim Key", &Vars::selectedKeyIndex, Vars::keyNames, IM_ARRAYSIZE(Vars::keyNames))) {
-                Vars::aimkey = Vars::keyValues[Vars::selectedKeyIndex];
-            }
-
-            /*if (ImGui::TreeNode("AI Aimbot"))
-            {
-                ImGui::TreePop();
-            }*/
-            ImGui::TreePop();
-        }
-
-        if (ImGui::TreeNode("Misc"))
-        {
-            ImGui::Checkbox("Fov Changer", &Vars::fovChanger);
-            if (Vars::fovChanger)
-            {
-                ImGui::SliderFloat("##CamFOV", &Vars::cameraFOV, 20, 180, "Camera FOV: %.0f");
-            }
-            ImGui::TreePop();
         }
         ImGui::End();
     }
-    // NOTE: hier kommt der code der ausgeführt wird wenn variablen sich im menü ändern
-    // NOTE: dies evtl. in eine eigene Funktion packen
-    if (Vars::fovChanger)
-    {
-        Unity::CCamera* CameraMain = Unity::Camera::GetMain();
-        if (CameraMain != nullptr)
-        {
-            CameraMain->CallMethodSafe<void*>("set_fieldOfView", Vars::cameraFOV);
-        }
-    }
-    if (Vars::aimbot)
-    {
-        for (int i = 0; i < Vars::playerList.size(); i++)
-        {
-            Unity::CGameObject* currentPlayer = Vars::playerList[i];
-            if (!currentPlayer) continue;
-
-            Unity::CTransform* playerTransform = currentPlayer->GetTransform();
-            if (!playerTransform) continue;
-
-            Unity::Vector3 targetPos;
-            Unity::CTransform* transform = nullptr;
-            Unity::Vector2 inView;
-            if (Vars::boneSelected == 0) {
-                transform = playerTransform->FindChild(Vars::marineHeadPath);
-                if (transform) {
-                    targetPos = transform->GetPosition();
-                    if (Functions::WorldToScreen(targetPos, inView)) {
-                        Functions::ExecAimbot(currentPlayer, inView);
-                    }
-                }
-
-                transform = playerTransform->FindChild(Vars::soldierHeadPath);
-                if (transform) {
-                    targetPos = transform->GetPosition();
-                    if (Functions::WorldToScreen(targetPos, inView)) {
-                        Functions::ExecAimbot(currentPlayer, inView);
-                    }
-                }
-            }
-            else if (Vars::boneSelected == 1) {
-                transform = playerTransform->FindChild(Vars::marineChestPath);
-                if (transform) {
-                    targetPos = transform->GetPosition();
-                    if (Functions::WorldToScreen(targetPos, inView)) {
-                        Functions::ExecAimbot(currentPlayer, inView);
-                    }
-                }
-
-                transform = playerTransform->FindChild(Vars::soldierChestPath);
-                if (transform) {
-                    targetPos = transform->GetPosition();
-                    if (Functions::WorldToScreen(targetPos, inView)) {
-                        Functions::ExecAimbot(currentPlayer, inView);
-                    }
-                }
-            }
-        }
-    }
-    if (Vars::fovCheck) {
-        ImGui::GetForegroundDrawList()->AddCircle(ImVec2(Vars::screenCenter.x, Vars::screenCenter.y), Vars::aimbotFov, ImColor(255, 255, 255), 360);
-    }
+    Functions::GuiLogic();
 
     ImGui::EndFrame();
     ImGui::Render();
 
-    pContext->OMSetRenderTargets(1, &mainRenderTargetView, NULL);
+    Vars::pContext->OMSetRenderTargets(1, &mainRenderTargetView, NULL);
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
     IL2CPP::Thread::Detach(m_pThisThread);
@@ -425,60 +442,9 @@ DWORD __stdcall gui::EjectThread(LPVOID lpParameter) {
     return 0;
 }
 
-void SetupWallhack() {
-    propertiesModel wallhackParamsItem;
-    // Case
-    wallhackParamsItem.stride = 40;
-    wallhackParamsItem.vedesc_ByteWidth = 178560;
-    wallhackParamsItem.indesc_ByteWidth = 23856;
-    wallhackParamsItem.pscdesc_ByteWidth = 2080;
-    wallhackParams.insert(wallhackParamsItem);
-    // PlayerModel
-    wallhackParamsItem.stride = 40;
-    wallhackParamsItem.vedesc_ByteWidth = 1308520;
-    wallhackParamsItem.indesc_ByteWidth = 371628;
-    wallhackParamsItem.pscdesc_ByteWidth = 2080;
-    wallhackParams.insert(wallhackParamsItem);
-    printf_s("[+] Wallhack params done\n");
-}
-
-// NOTE: WICHTIG, da sich bei jedem start des spiels irgendwie das offset der kamera ändert. Mit dieser funktion können wir dynamisch das offset holen
-bool FindOffsets() {
-    Unity::il2cppClass* CameraClass = IL2CPP::Class::Find("UnityEngine.Camera");
-    Offsets::setFieldOfView = (uintptr_t)IL2CPP::Class::Utils::GetMethodPointer(CameraClass, "set_fieldOfView");
-    return true;
-}
-
-bool PlayerCache()
-{
-    while (true)
-    {
-        void* m_pThisThread = IL2CPP::Thread::Attach(IL2CPP::Domain::Get());
-        Vars::localPlayer = NULL;
-        Vars::playerList.clear();
-        auto list = Unity::Object::FindObjectsOfType<Unity::CComponent>("UnityEngine.Rigidbody");
-        for (int i = 0; i < list->m_uMaxLength; i++)
-        {
-            if (!list->operator[](i))
-                continue;
-            auto obj = list->operator[](i);
-            if (!obj)
-                continue;
-
-            std::string objectname = obj->GetName()->ToString();
-            if (objectname.find("[Player:") == 0)
-            {
-                Vars::playerList.push_back(list->operator[](i)->GetGameObject());
-            }
-        }
-        IL2CPP::Thread::Detach(m_pThisThread);
-        Sleep(1000);
-    }
-}
-
 // main code
 int WINAPI gui::RunGUI()
-{   
+{
     // TODO: wenn später die konsole entfernt wird, dann diese if überarbeiten
     if (IL2CPP::Initialize(true))
     {
@@ -494,7 +460,7 @@ int WINAPI gui::RunGUI()
     Vars::GameAssembly = (uintptr_t)GetModuleHandleA("GameAssembly.dll");
     Vars::UnityPlayer = (uintptr_t)GetModuleHandleA("UnityPlayer.dll");
     IL2CPP::Callback::Initialize();
-    FindOffsets();
+    Functions::FindOffsets();
 
     if (!gui::GetPresentPointer())
     {
@@ -507,7 +473,8 @@ int WINAPI gui::RunGUI()
         return 1;
     }
 
-    SetupWallhack();
+    Functions::SetupWallhack();
+    Functions::InitializeAISettings();
 
     if (MH_CreateHook(reinterpret_cast<void**>(pPresentTarget), &gui::hkPresent, reinterpret_cast<void**>(&pPresent)) != MH_OK) {
         return 1;
@@ -523,13 +490,13 @@ int WINAPI gui::RunGUI()
         return 1;
     }
 
-    CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)PlayerCache, NULL, NULL, NULL);
+    CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)Functions::PlayerCache, NULL, NULL, NULL);
 
     while (true) {
         Sleep(50);
     }
 
-    // cleanup
+    // Cleanup
     if (MH_DisableHook(MH_ALL_HOOKS) != MH_OK) {
         return 1;
     }
@@ -542,8 +509,9 @@ int WINAPI gui::RunGUI()
     ImGui::DestroyContext();
 
     if (mainRenderTargetView) { mainRenderTargetView->Release(); mainRenderTargetView = NULL; }
-    if (pContext) { pContext->Release(); pContext = NULL; }
-    if (pDevice) { pDevice->Release(); pDevice = NULL; }
+    if (Vars::pContext) { Vars::pContext->Release(); Vars::pContext = NULL; }
+    if (Vars::pDevice) { Vars::pDevice->Release(); Vars::pDevice = NULL; }
+    if (Vars::g_pSwapChain) { Vars::g_pSwapChain->Release(); Vars::g_pSwapChain = NULL; }
     SetWindowLongPtr(window, GWLP_WNDPROC, (LONG_PTR)(oWndProc));
 
     CreateThread(0, 0, gui::EjectThread, 0, 0, 0);

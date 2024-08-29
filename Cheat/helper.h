@@ -11,6 +11,10 @@ namespace Offsets
 
 namespace Vars
 {
+	ID3D11Device* pDevice = NULL;
+	ID3D11DeviceContext* pContext = NULL;
+	IDXGISwapChain* g_pSwapChain = NULL;
+
 	uintptr_t Base;
 	uintptr_t GameAssembly;
 	uintptr_t UnityPlayer;
@@ -28,6 +32,7 @@ namespace Vars
 	const char* keyNames[] = { "Alt", "C", "V", "Right Mouse Button" };
 	DWORD keyValues[] = { VK_MENU, 'C', 'V', VK_RBUTTON };
 	static int selectedKeyIndex = 0;
+	static int tab = 0;
 
 	// Wallhack
 	// Booleans for different wallhack models
@@ -57,4 +62,21 @@ namespace Vars
 	const char* soldierHeadPath = "VisualsRoot/Sci_Fi_Character_08_03/root/pelvis/spine_01/spine_02/spine_03/neck_01/head";
 	const char* soldierChestPath = "VisualsRoot/Sci_Fi_Character_08_03/root/pelvis/spine_01/spine_02/spine_03";
 	int boneSelected = 0;
+}
+
+namespace AI
+{
+	bool initAI = false;
+	bool enableAIAimbot = false;
+	bool enableCuda = true;
+	bool enableFrameLimit = false;
+	int inferenceInterval = 5;
+	std::vector<std::string> classesToShow = { "Head" };
+	const char* classNames[] = { "Player", "Head", "Chest", "Leg" };
+	std::vector<bool> classSelected(IM_ARRAYSIZE(classNames), false);
+	bool pathChanged = false;
+	std::string modelPath = "F:\\Bachelorarbeit\\BuildGame2.0\\NewYolov8s.onnx";
+	bool autoAim = false;
+	YOLO::Inference* inferenceModel = nullptr;
+	int frameCounter = 0;
 }

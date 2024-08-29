@@ -71,10 +71,12 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>F:\Bachelorarbeit\Cheat\Cheat\ext;$(IncludePath)</IncludePath>
+    <IncludePath>F:\Bachelorarbeit\Cheat\Cheat\ext;X:\opencv_with_cuda\install\include;$(IncludePath)</IncludePath>
+    <LibraryPath>X:\opencv_with_cuda\install\x64\vc17\staticlib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>F:\Bachelorarbeit\Cheat\Cheat\ext;$(IncludePath)</IncludePath>
+    <IncludePath>F:\Bachelorarbeit\Cheat\Cheat\ext;X:\opencv_with_cuda\install\include;$(IncludePath)</IncludePath>
+    <LibraryPath>X:\opencv_with_cuda\install\x64\vc17\staticlib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -118,13 +120,20 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <AdditionalIncludeDirectories>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\lib\x64;X:\opencv_with_cuda\install\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>d3d11.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d11.lib;ade.lib;IlmImf.lib;ippicvmt.lib;ippiw.lib;ittnotify.lib;libjpeg-turbo.lib;libopenjp2.lib;libpng.lib;libprotobuf.lib;libtiff.lib;libwebp.lib;opencv_img_hash4100.lib;opencv_world4100.lib;zlib.lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\lib\x64\cuda.lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\lib\x64\cudart.lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\lib\x64\cudnn.lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\lib\x64\cublas.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\lib\x64;X:\opencv_with_cuda\install\x64\vc17\staticlib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
+    <PostBuildEvent>
+      <Command>
+      </Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -137,6 +146,8 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\lib\x64;X:\opencv_with_cuda\install\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -144,8 +155,13 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>d3d11.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d11.lib;ade.lib;IlmImf.lib;ippicvmt.lib;ippiw.lib;ittnotify.lib;libjpeg-turbo.lib;libopenjp2.lib;libpng.lib;libprotobuf.lib;libtiff.lib;libwebp.lib;opencv_img_hash4100.lib;opencv_world4100.lib;zlib.lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\lib\x64\cuda.lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\lib\x64\cudart.lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\lib\x64\cudnn.lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\lib\x64\cublas.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\lib\x64;X:\opencv_with_cuda\install\x64\vc17\staticlib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
+    <PostBuildEvent>
+      <Command>
+      </Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="aimbot.h" />
@@ -206,7 +222,9 @@
     <ClCompile Include="gui.cpp" />
     <ClCompile Include="wallhack.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="TestModel.onnx" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <ImportGroup Label="ExtensionTargets">
-  </ImportGroup>
+  <ImportGroup Label="ExtensionTargets" />
 </Project>

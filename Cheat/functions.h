@@ -17,7 +17,8 @@ namespace Functions
     }
 #pragma endregion
 #pragma region Helper / Normal Functions
-    void ImGuiCustomStyle() {
+    void ImGuiCustomStyle() 
+    {
         ImGuiStyle& style = ImGui::GetStyle();
 
         style.WindowPadding = ImVec2(15, 15);
@@ -40,19 +41,24 @@ namespace Functions
         style.Colors[ImGuiCol_TitleBgActive] = ImVec4(0.07f, 0.07f, 0.09f, 1.00f);
         style.Colors[ImGuiCol_MenuBarBg] = ImVec4(0.10f, 0.09f, 0.12f, 1.00f);
     }
-    HWND GetHandlerByWindowTitle(const std::wstring& windowTitle) {
+    HWND GetHandlerByWindowTitle(const std::wstring& windowTitle) 
+    {
         HWND window = FindWindowW(NULL, windowTitle.c_str());
-        if (window != NULL) {
+        if (window != NULL) 
+        {
             DWORD processId;
             DWORD threadId = GetWindowThreadProcessId(window, &processId);
-            if (threadId != 0) {
+            if (threadId != 0) 
+            {
                 return window;
             }
-            else {
+            else 
+            {
                 return window;
             }
         }
-        else {
+        else 
+        {
             return window;
         }
         return window;
@@ -60,7 +66,8 @@ namespace Functions
     bool WorldToScreen(Unity::Vector3 world, Unity::Vector2& screen)
     {
         Unity::CCamera* CameraMain = Unity::Camera::GetMain();
-        if (!CameraMain) {
+        if (!CameraMain) 
+        {
             return false;
         }
 
@@ -168,19 +175,282 @@ namespace Functions
                 return false;
         }
 
-        if (GetAsyncKeyState(Vars::aimkey)) {
-            if (Vars::targetPlayer == nullptr) {
+        if (GetAsyncKeyState(Vars::aimkey)) 
+        {
+            if (Vars::targetPlayer == nullptr) 
+            {
                 Vars::targetPlayer = target;
             }
 
-            if (Vars::targetPlayer == target) {
+            if (Vars::targetPlayer == target) 
+            {
                 MouseMove(bodyTarget.x, bodyTarget.y, Vars::screenSize.x, Vars::screenSize.y, Vars::smooth);
             }
         }
-        else {
+        else 
+        {
             Vars::targetPlayer = nullptr;
         }
         return true;
     }
+    // NOTE: WICHTIG, da sich bei jedem start des spiels irgendwie das offset der kamera ändert. Mit dieser funktion können wir dynamisch das offset holen
+    bool FindOffsets() 
+    {
+        Unity::il2cppClass* CameraClass = IL2CPP::Class::Find("UnityEngine.Camera");
+        Offsets::setFieldOfView = (uintptr_t)IL2CPP::Class::Utils::GetMethodPointer(CameraClass, "set_fieldOfView");
+        return true;
+    }
+    bool PlayerCache()
+    {
+        while (true)
+        {
+            void* m_pThisThread = IL2CPP::Thread::Attach(IL2CPP::Domain::Get());
+            Vars::localPlayer = NULL;
+            Vars::playerList.clear();
+            auto list = Unity::Object::FindObjectsOfType<Unity::CComponent>("UnityEngine.Rigidbody");
+            for (int i = 0; i < list->m_uMaxLength; i++)
+            {
+                if (!list->operator[](i))
+                    continue;
+                auto obj = list->operator[](i);
+                if (!obj)
+                    continue;
+
+                std::string objectname = obj->GetName()->ToString();
+                if (objectname.find("[Player:") == 0)
+                {
+                    Vars::playerList.push_back(list->operator[](i)->GetGameObject());
+                }
+            }
+            IL2CPP::Thread::Detach(m_pThisThread);
+            Sleep(1000);
+        }
+    }
+    cv::Mat CaptureFrameGPU(ID3D11Device* device, ID3D11DeviceContext* context, IDXGISwapChain* swapChain) 
+    {
+        ID3D11Texture2D* backBuffer = nullptr;
+        HRESULT hr = swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&backBuffer);
+        if (FAILED(hr)) 
+        {
+            std::cerr << "Fehler beim Abrufen des Backbuffers." << std::endl;
+            return cv::Mat();
+        }
+
+        // Erstellen einer Staging-Textur für den CPU-Zugriff
+        D3D11_TEXTURE2D_DESC desc;
+        backBuffer->GetDesc(&desc);
+        desc.Usage = D3D11_USAGE_STAGING;
+        desc.BindFlags = 0;
+        desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+        desc.MiscFlags = 0;
+
+        ID3D11Texture2D* stagingTexture = nullptr;
+        hr = device->CreateTexture2D(&desc, nullptr, &stagingTexture);
+        if (FAILED(hr)) 
+        {
+            std::cerr << "Fehler beim Erstellen der Staging-Textur." << std::endl;
+            backBuffer->Release();
+            return cv::Mat();
+        }
+
+        // Kopieren des Backbuffers in die Staging-Textur
+        context->CopyResource(stagingTexture, backBuffer);
+        backBuffer->Release();
+
+        // Mappen der Staging-Textur, um auf die Bilddaten zuzugreifen
+        D3D11_MAPPED_SUBRESOURCE mappedResource;
+        hr = context->Map(stagingTexture, 0, D3D11_MAP_READ, 0, &mappedResource);
+        if (FAILED(hr)) 
+        {
+            std::cerr << "Fehler beim Mappen der Staging-Textur." << std::endl;
+            stagingTexture->Release();
+            return cv::Mat();
+        }
+
+        // Erstellen eines OpenCV-Mat-Objekts aus den Bilddaten
+        cv::Mat image(desc.Height, desc.Width, CV_8UC4, mappedResource.pData, mappedResource.RowPitch);
+        cv::Mat result;
+        cv::cvtColor(image, result, cv::COLOR_BGRA2BGR);
+
+        // Entmappen der Staging-Textur
+        context->Unmap(stagingTexture, 0);
+        stagingTexture->Release();
+
+        return result;
+    }
+    void InitializeAISettings() 
+    {
+        for (int i = 0; i < IM_ARRAYSIZE(AI::classNames); i++) 
+        {
+            AI::classSelected[i] = (std::find(AI::classesToShow.begin(), AI::classesToShow.end(), AI::classNames[i]) != AI::classesToShow.end());
+        }
+    }
+    void SetupWallhack() 
+    {
+        propertiesModel wallhackParamsItem;
+        // Case
+        wallhackParamsItem.stride = 40;
+        wallhackParamsItem.vedesc_ByteWidth = 178560;
+        wallhackParamsItem.indesc_ByteWidth = 23856;
+        wallhackParamsItem.pscdesc_ByteWidth = 2080;
+        wallhackParams.insert(wallhackParamsItem);
+        // PlayerModel
+        wallhackParamsItem.stride = 40;
+        wallhackParamsItem.vedesc_ByteWidth = 1308520;
+        wallhackParamsItem.indesc_ByteWidth = 371628;
+        wallhackParamsItem.pscdesc_ByteWidth = 2080;
+        wallhackParams.insert(wallhackParamsItem);
+        printf_s("[+] Wallhack params done\n");
+    }
+    void GuiLogic()
+    {
+        if (Vars::fovChanger)
+        {
+            Unity::CCamera* CameraMain = Unity::Camera::GetMain();
+            if (CameraMain != nullptr)
+            {
+                CameraMain->CallMethodSafe<void*>("set_fieldOfView", Vars::cameraFOV);
+            }
+        }
+        if (Vars::aimbot)
+        {
+            for (int i = 0; i < Vars::playerList.size(); i++)
+            {
+                Unity::CGameObject* currentPlayer = Vars::playerList[i];
+                if (!currentPlayer) continue;
+
+                Unity::CTransform* playerTransform = currentPlayer->GetTransform();
+                if (!playerTransform) continue;
+
+                Unity::Vector3 targetPos;
+                Unity::CTransform* transform = nullptr;
+                Unity::Vector2 inView;
+                if (Vars::boneSelected == 0) 
+                {
+                    transform = playerTransform->FindChild(Vars::marineHeadPath);
+                    if (transform) 
+                    {
+                        targetPos = transform->GetPosition();
+                        if (Functions::WorldToScreen(targetPos, inView)) 
+                        {
+                            Functions::ExecAimbot(currentPlayer, inView);
+                        }
+                    }
+
+                    transform = playerTransform->FindChild(Vars::soldierHeadPath);
+                    if (transform) 
+                    {
+                        targetPos = transform->GetPosition();
+                        if (Functions::WorldToScreen(targetPos, inView)) 
+                        {
+                            Functions::ExecAimbot(currentPlayer, inView);
+                        }
+                    }
+                }
+                else if (Vars::boneSelected == 1) 
+                {
+                    transform = playerTransform->FindChild(Vars::marineChestPath);
+                    if (transform) 
+                    {
+                        targetPos = transform->GetPosition();
+                        if (Functions::WorldToScreen(targetPos, inView)) 
+                        {
+                            Functions::ExecAimbot(currentPlayer, inView);
+                        }
+                    }
+
+                    transform = playerTransform->FindChild(Vars::soldierChestPath);
+                    if (transform) 
+                    {
+                        targetPos = transform->GetPosition();
+                        if (Functions::WorldToScreen(targetPos, inView)) 
+                        {
+                            Functions::ExecAimbot(currentPlayer, inView);
+                        }
+                    }
+                }
+            }
+        }
+        if (Vars::fovCheck) 
+        {
+            ImGui::GetForegroundDrawList()->AddCircle(ImVec2(Vars::screenCenter.x, Vars::screenCenter.y), Vars::aimbotFov, ImColor(255, 255, 255), 360);
+        }
+        if (AI::enableAIAimbot)
+        {
+            if (!AI::initAI)
+            {
+                try 
+                {
+                    AI::inferenceModel = new YOLO::Inference(AI::modelPath, cv::Size(640, 640), AI::enableCuda);
+                    AI::initAI = true;
+                    std::cout << "AI model initialized successfully." << std::endl;
+                }
+                catch (const std::exception& e)
+                {
+                    std::cerr << "Error initializing AI model: " << e.what() << std::endl;
+                    AI::initAI = false;
+                    if (AI::inferenceModel) 
+                    {
+                        AI::inferenceModel = nullptr;
+                    }
+                }
+            }
+            cv::Mat frame = Functions::CaptureFrameGPU(Vars::pDevice, Vars::pContext, Vars::g_pSwapChain);
+            if (!frame.empty())
+            {
+                std::vector<YOLO::Detection> output;
+                if (AI::enableFrameLimit)
+                {
+                    AI::frameCounter++;
+                    if (AI::frameCounter >= AI::inferenceInterval)
+                    {
+                        cv::Mat resizedFrame;
+                        cv::resize(frame, resizedFrame, cv::Size(640, 640));
+                        output = AI::inferenceModel->runInference(resizedFrame);
+                        AI::frameCounter = 0;
+                    }
+                }
+                else if (!AI::enableFrameLimit)
+                {
+                    output = AI::inferenceModel->runInference(frame);
+                }
+                YOLO::DrawBoundingBoxes(output, AI::classesToShow);
+
+                if (!output.empty())
+                {
+                    ExtendedAI::screenSizeX = Vars::screenSize.x;
+                    ExtendedAI::screenSizeY = Vars::screenSize.y;
+
+                    auto prioTargets = ExtendedAI::PrioritizeBodyParts(output, AI::classesToShow);
+                    if (!prioTargets.empty())
+                    {
+                        const auto& target = prioTargets[0];
+                        cv::Point2f currentTargetPos(
+                            target.box.x + target.box.width / 2.0f,
+                            target.box.y + target.box.height / 2.0f
+                        );
+
+                        static cv::Point2f currentAimPoint(Vars::screenSize.x / 2, Vars::screenSize.y / 2);
+                        cv::Point2f newAimPoint = ExtendedAI::SimulateHumanAiming(currentAimPoint, currentTargetPos, ExtendedAI::aimSpeed);
+
+                        if (AI::autoAim || (GetAsyncKeyState(VK_MENU) & 0x8000))
+                        {
+                            Functions::MouseMove(newAimPoint.x, newAimPoint.y, Vars::screenSize.x, Vars::screenSize.y, 1);
+                            currentAimPoint = newAimPoint;
+                        }
+                    }
+                }
+            }
+            if (AI::pathChanged) 
+            {
+                AI::initAI = false;
+                delete AI::inferenceModel;
+                AI::inferenceModel = nullptr;
+                AI::pathChanged = false;
+            }
+        }
+    }
+#pragma endregion
+#pragma region AI
 #pragma endregion
 }
