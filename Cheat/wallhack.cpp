@@ -1,6 +1,9 @@
 #include "wallhack.h"
 #include "gui.h"
 
+// SOURCE: https://niemand.com.ar/2019/01/08/fingerprinting-models-when-hooking-directx-vermintide-2/
+// SOURCE: https://niemand.com.ar/2019/01/13/creating-your-own-wallhack/
+
 bool operator==(const propertiesModel& lhs, const propertiesModel& rhs)
 {
     if (lhs.stride != rhs.stride
@@ -50,12 +53,13 @@ ID3D11DepthStencilState* m_DepthStencilStateFalse;
 ID3D11DepthStencilState* m_origDepthStencilState;
 UINT pStencilRef;
 
+// Own contribution
 void UpdateRedShader(float r, float g, float b, float a)
 {
     if (pShaderRed) pShaderRed->Release();
     gui::GenerateShader(&pShaderRed, r, g, b);
 }
-
+// Own contribution
 void UpdateBlueShader(float r, float g, float b, float a)
 {
     if (pShaderBlue) pShaderBlue->Release();

@@ -32,12 +32,11 @@ namespace YOLO
         std::string modelPath;
         bool cudaEnabled;
         cv::Size2f modelShape;
-        std::vector<std::string> classes{ "Chest", "Head", "Leg", "Player"};
+        std::vector<std::string> classes{ "Back", "Body", "Head", "Left-Leg", "Player", "Right-Leg"};
         cv::dnn::Net net;
     };
     extern void DrawBoundingBoxes(const std::vector<YOLO::Detection>& detections, const std::vector<std::string>& classesToShow);
 }
-
 #endif // AI_H
 
 // Erweiterungen der KI
@@ -57,7 +56,7 @@ namespace ExtendedAI
     extern float screenSizeX;
     extern float screenSizeY;
 
-    extern std::vector<YOLO::Detection> PrioritizeBodyParts(const std::vector<YOLO::Detection>& detections, const std::vector<std::string>& classesToShow);
-    extern cv::Point2f SimulateHumanAiming(const cv::Point2f& currentAim, const cv::Point2f& targetAim, float speed);
-    extern cv::Point2f AddHumanError(const cv::Point2f& aimPoint, float maxError);
+    std::vector<YOLO::Detection> PrioritizeBodyParts(const std::vector<YOLO::Detection>& detections, const std::vector<std::string>& classesToShow);
+    cv::Point2f SimulateHumanAiming(const cv::Point2f& currentAim, const cv::Point2f& targetAim, float speed);
+    cv::Point2f AddHumanError(const cv::Point2f& aimPoint, float maxError);
 }

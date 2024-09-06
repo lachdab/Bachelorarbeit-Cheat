@@ -13,7 +13,7 @@ namespace Vars
 {
 	ID3D11Device* pDevice = NULL;
 	ID3D11DeviceContext* pContext = NULL;
-	IDXGISwapChain* g_pSwapChain = NULL;
+	IDXGISwapChain* pSwapChain = NULL;
 
 	uintptr_t Base;
 	uintptr_t GameAssembly;
@@ -72,10 +72,10 @@ namespace AI
 	bool enableFrameLimit = false;
 	int inferenceInterval = 5;
 	std::vector<std::string> classesToShow = { "Head" };
-	const char* classNames[] = { "Player", "Head", "Chest", "Leg" };
+	const char* classNames[] = { "Back", "Body", "Head", "Left-Leg", "Player", "Right-Leg"};
 	std::vector<bool> classSelected(IM_ARRAYSIZE(classNames), false);
 	bool pathChanged = false;
-	std::string modelPath = "F:\\Bachelorarbeit\\BuildGame2.0\\NewYolov8s.onnx";
+	std::string modelPath = "F:\\Bachelorarbeit\\BuildGame2.0\\ki_aimbot_v3_300E.onnx";
 	bool autoAim = false;
 	YOLO::Inference* inferenceModel = nullptr;
 	int frameCounter = 0;

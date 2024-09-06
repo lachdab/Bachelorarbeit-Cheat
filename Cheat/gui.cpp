@@ -1,15 +1,20 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+// SOURCE: https://github.com/CasualCoder91/DX11Hook/blob/master/Main.cpp
+// Used as a Codebase
 
 // MINHOOK
+// SOURCE: https://github.com/TsudaKageyu/minhook
 #include "ext/MinHook/MinHook.h"
 #pragma comment(lib, "ext/MinHook/libMinHook.x64.lib")
 
 // IMGUI
+// SOURCE: https://github.com/ocornut/imgui
 #include "ext/imgui/imgui.h"
 #include "ext/imgui/imgui_impl_win32.h"
 #include "ext/imgui/imgui_impl_dx11.h"
 
+// Cheat Headerfiles
 #include "aimbot.h"
 #include "wallhack.h"
 
@@ -19,10 +24,11 @@
 #include "gui.h"
 #include <iostream>
 #include <d3dcompiler.h>
+// SOURCE: https://www.unknowncheats.me/forum/unity/476697-il2cpp-resolver.html
 #include <IL2CPP_Resolver/IL2CPP_Resolver.hpp>
 #include "helper.h"
 #include "functions.h"
-#define SAFE_RELEASE(p)      { if(p) { (p)->Release(); (p)=NULL; } }
+#define SAFE_RELEASE(p) { if(p) { (p)->Release(); (p)=NULL; } }
 
 WNDPROC oWndProc;
 HINSTANCE gui::dll_handle = nullptr;
@@ -34,11 +40,13 @@ typedef long(__stdcall* present)(IDXGISwapChain*, UINT, UINT);
 present pPresent;
 present pPresentTarget;
 
-// Hooking DrawIndexedInstanced from DX11 for PlayerModel and Cases
+// Hooking DrawIndexedInstanced from DX11 for Playermodel and Cases
 typedef void(__stdcall* ID3D11DrawIndexedInstanced)(ID3D11DeviceContext* p_context, UINT IndexCountPerInstance, UINT InstanceCount, UINT StartIndexLocation, INT BaseVertexLocation, UINT StartInstanceLocation);
 ID3D11DrawIndexedInstanced fnID3D11DrawIndexedInstanced = nullptr;
 DWORD_PTR* pDeviceContextVTable = NULL;
 
+// SOURCE: https://github.com/CasualCoder91/DX11Hook/blob/master/Main.cpp
+// Modified: added processName and Functions::GetHandlerByWindowTitle()
 bool gui::GetPresentPointer()
 {
     std::wstring processName = L"Bachelorarbeit2.0";
@@ -82,7 +90,7 @@ bool gui::GetPresentPointer()
     return false;
 }
 
-// https://www.unknowncheats.me/forum/d3d-tutorials-and-source/75474-generateshader-directx11.html
+// SOURCE: https://www.unknowncheats.me/forum/d3d-tutorials-and-source/75474-generateshader-directx11.html
 HRESULT gui::GenerateShader(ID3D11PixelShader** pShader, float r, float g, float b)
 {
     const char* shaderTemplate = R"(
@@ -127,6 +135,9 @@ HRESULT gui::GenerateShader(ID3D11PixelShader** pShader, float r, float g, float
     return hr;
 }
 
+// SOURCE: https://niemand.com.ar/2019/01/08/fingerprinting-models-when-hooking-directx-vermintide-2/
+// SOURCE: https://niemand.com.ar/2019/01/13/creating-your-own-wallhack/
+// Implemented this function based on these 2 sources
 void __stdcall hkD3D11DrawIndexedInstanced(ID3D11DeviceContext* p_context, UINT IndexCountPerInstance, UINT InstanceCount, UINT StartIndexLocation, INT BaseVertexLocation, UINT StartInstanceLocation) 
 {
     if (Vars::firstTime)
@@ -151,19 +162,19 @@ void __stdcall hkD3D11DrawIndexedInstanced(ID3D11DeviceContext* p_context, UINT 
         gui::GenerateShader(&pShaderBlue, 0.0f, 0.0f, 1.0f);
     }
     
-    // get stride & vedesc.ByteWidth
+    // Get stride & vedesc.ByteWidth
     p_context->IAGetVertexBuffers(0, 1, &veBuffer, &Stride, &veBufferOffset);
     if (veBuffer)
         veBuffer->GetDesc(&vedesc);
     if (veBuffer != NULL) { veBuffer->Release(); veBuffer = NULL; }
 
-    // get indesc.ByteWidth
+    // Get indesc.ByteWidth
     p_context->IAGetIndexBuffer(&inBuffer, &inFormat, &inOffset);
     if (inBuffer)
         inBuffer->GetDesc(&indesc);
     if (inBuffer != NULL) { inBuffer->Release(); inBuffer = NULL; }
 
-    // get pscdesc.ByteWidth
+    // Get pscdesc.ByteWidth
     p_context->PSGetConstantBuffers(pscStartSlot, 1, &pscBuffer);
     if (pscBuffer != NULL)
         pscBuffer->GetDesc(&pscdesc);
@@ -188,36 +199,41 @@ void __stdcall hkD3D11DrawIndexedInstanced(ID3D11DeviceContext* p_context, UINT 
 
     if ((wallhackParams.find(paramsModelInstanced) != wallhackParams.end()) && Vars::shader)
     {
+        // Save the original depth stencil state
         p_context->OMGetDepthStencilState(&m_origDepthStencilState, &pStencilRef);
 
+        // Lambda function to apply wallhack and chams effects
         auto applyWallhackAndChams = [&](ID3D11PixelShader* throughWallShader, ID3D11PixelShader* visibleShader)
         {
-                // Deactivated depth stencil (visible through walls)
+                // Deactivate depth stencil (make objects visible through walls)
                 p_context->OMSetDepthStencilState(m_DepthStencilStateFalse, pStencilRef);
                 p_context->PSSetShader(throughWallShader, NULL, NULL);
                 fnID3D11DrawIndexedInstanced(p_context, IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
 
-                // Activated depth stencil (normal visibility)
+                // Activate depth stencil (normal visibility)
                 p_context->OMSetDepthStencilState(m_DepthStencilState, pStencilRef);
                 p_context->PSSetShader(visibleShader, NULL, NULL);
                 fnID3D11DrawIndexedInstanced(p_context, IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
         };
         bool drawn = false;
 
+        // Check if the parameters match for player models
         if (Vars::wallhack && paramsModelInstanced.stride == 40 && paramsModelInstanced.vedesc_ByteWidth == 1308520)
         {
-            // PlayerModel
+            // Apply wallhack and chams for player models
             applyWallhackAndChams(pShaderRed, pShaderBlue);
             drawn = true;
         }
+        // Check if the parameters match for cases
         else if (Vars::cases && paramsModelInstanced.stride == 40 && paramsModelInstanced.vedesc_ByteWidth == 178560)
         {
-            // Cases
+            // Apply wallhack and chams for cases
             applyWallhackAndChams(pShaderRed, pShaderBlue);
             drawn = true;
         }
         if (drawn)
         {
+            // Restore the original depth stencil state
             p_context->OMSetDepthStencilState(m_origDepthStencilState, pStencilRef);
             SAFE_RELEASE(m_origDepthStencilState);
             return;
@@ -226,8 +242,10 @@ void __stdcall hkD3D11DrawIndexedInstanced(ID3D11DeviceContext* p_context, UINT 
     fnID3D11DrawIndexedInstanced(p_context, IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
 }
 
-static long __stdcall gui::hkPresent(IDXGISwapChain* p_swap_chain, UINT sync_interval, UINT flags) {
-    
+// SOURCE: https://github.com/CasualCoder91/DX11Hook/blob/master/Main.cpp
+// Modified: for my own needs
+static long __stdcall gui::hkPresent(IDXGISwapChain* p_swap_chain, UINT sync_interval, UINT flags) 
+{   
     void* m_pThisThread = IL2CPP::Thread::Attach(IL2CPP::Domain::Get());
 
     if (!Vars::init) {
@@ -262,7 +280,7 @@ static long __stdcall gui::hkPresent(IDXGISwapChain* p_swap_chain, UINT sync_int
             Functions::ImGuiCustomStyle();
             ImGui_ImplWin32_Init(window);
             ImGui_ImplDX11_Init(Vars::pDevice, Vars::pContext);
-            Vars::g_pSwapChain = p_swap_chain;
+            Vars::pSwapChain = p_swap_chain;
             Vars::init = true;
         }
         else
@@ -277,6 +295,7 @@ static long __stdcall gui::hkPresent(IDXGISwapChain* p_swap_chain, UINT sync_int
     ImGui_ImplDX11_NewFrame();
     ImGui::NewFrame();
 
+    // Own contribution
     if (Vars::showImGuiMenu) {
         if (ImGui::Begin("Cheat Menu", nullptr, ImGuiWindowFlags_NoResize))
         {
@@ -445,7 +464,6 @@ DWORD __stdcall gui::EjectThread(LPVOID lpParameter) {
 // main code
 int WINAPI gui::RunGUI()
 {
-    // TODO: wenn später die konsole entfernt wird, dann diese if überarbeiten
     if (IL2CPP::Initialize(true))
     {
         printf("[DEBUG] Il2cpp API initialized\n");
@@ -511,7 +529,7 @@ int WINAPI gui::RunGUI()
     if (mainRenderTargetView) { mainRenderTargetView->Release(); mainRenderTargetView = NULL; }
     if (Vars::pContext) { Vars::pContext->Release(); Vars::pContext = NULL; }
     if (Vars::pDevice) { Vars::pDevice->Release(); Vars::pDevice = NULL; }
-    if (Vars::g_pSwapChain) { Vars::g_pSwapChain->Release(); Vars::g_pSwapChain = NULL; }
+    if (Vars::pSwapChain) { Vars::pSwapChain->Release(); Vars::pSwapChain = NULL; }
     SetWindowLongPtr(window, GWLP_WNDPROC, (LONG_PTR)(oWndProc));
 
     CreateThread(0, 0, gui::EjectThread, 0, 0, 0);
@@ -521,7 +539,6 @@ int WINAPI gui::RunGUI()
 
 // Forward declare message handler from imgui_impl_win32.cpp
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-
 LRESULT __stdcall gui::WndProc(const HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     ImGuiIO& io = ImGui::GetIO();
     POINT cursorPos;

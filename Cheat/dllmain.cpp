@@ -11,9 +11,10 @@ BOOL APIENTRY DllMain( HMODULE hModule,
     switch (ul_reason_for_call)
     {
     case DLL_PROCESS_ATTACH:
-        AllocConsole();
+        // Remove comment to activate debug console
+        /*AllocConsole();
         FILE* fp;
-        freopen_s(&fp, "CONOUT$", "w", stdout);
+        freopen_s(&fp, "CONOUT$", "w", stdout);*/
 		gui::dll_handle = hModule;
 		CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)gui::RunGUI, NULL, 0, NULL);
         break;

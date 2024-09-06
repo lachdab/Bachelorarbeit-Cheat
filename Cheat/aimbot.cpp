@@ -10,9 +10,12 @@
 
 namespace YOLO
 {
-    void DrawBoundingBoxes(const std::vector<YOLO::Detection>& detections, const std::vector<std::string>& classesToShow) {
+    // Own contribution
+    void DrawBoundingBoxes(const std::vector<YOLO::Detection>& detections, const std::vector<std::string>& classesToShow)
+    {
         for (const auto& detection : detections)
         {
+            // Check if the detected class should be shown
             if (std::find(classesToShow.begin(), classesToShow.end(), detection.className) == classesToShow.end())
             {
                 continue;
@@ -21,17 +24,17 @@ namespace YOLO
             const cv::Rect& box = detection.box;
             const cv::Scalar& color = detection.color;
 
-            // Zeichnen des Rechtecks mit ImGui
+            // Draw the rectangle using ImGui
             ImGui::GetBackgroundDrawList()->AddRect(
                 ImVec2(box.x, box.y),
                 ImVec2(box.x + box.width, box.y + box.height),
-                IM_COL32(color[2], color[1], color[0], 255), // OpenCV verwendet BGR, ImGui RGB
-                0.0f, // Keine Rundung
-                0,    // Keine Flags
-                2.0f  // Linienbreite
+                IM_COL32(color[2], color[1], color[0], 255), // OpenCV uses BGR, ImGui uses RGB
+                0.0f, // No rounding
+                0,    // No flags
+                2.0f  // Line thickness
             );
 
-            // Text für die Erkennung
+            // Text for the detection
             std::string classString = detection.className + ' ' + std::to_string(detection.confidence).substr(0, 4);
             ImGui::GetBackgroundDrawList()->AddText(
                 ImVec2(box.x, box.y - 20),
@@ -40,7 +43,7 @@ namespace YOLO
             );
         }
     }
-    // https://github.com/ultralytics/ultralytics/blob/main/examples/YOLOv8-CPP-Inference/inference.cpp
+    // SOURCE: https://github.com/ultralytics/ultralytics/blob/main/examples/YOLOv8-CPP-Inference/inference.cpp
     Inference::Inference(const std::string& onnxModelPath, const cv::Size& modelInputShape, bool runWithCuda)
     {
         modelPath = onnxModelPath;
@@ -49,6 +52,7 @@ namespace YOLO
         loadOnnxNetwork();
     }
 
+    // SOURCE: https://github.com/ultralytics/ultralytics/blob/main/examples/YOLOv8-CPP-Inference/inference.cpp
     void Inference::loadOnnxNetwork() 
     {
         net = cv::dnn::readNetFromONNX(modelPath);
@@ -64,6 +68,8 @@ namespace YOLO
         }
     }
 
+    // SOURCE: https://github.com/ultralytics/ultralytics/blob/main/examples/YOLOv8-CPP-Inference/inference.cpp
+    // Modified: removed yolov5 code
     std::vector<Detection> Inference::runInference(const cv::Mat& input) 
     {
         cv::Mat modelInput = formatToSquare(input);
@@ -144,6 +150,7 @@ namespace YOLO
         return detections;
     }
 
+    // SOURCE: https://github.com/ultralytics/ultralytics/blob/main/examples/YOLOv8-CPP-Inference/inference.cpp
     cv::Mat Inference::formatToSquare(const cv::Mat& source) 
     {
         int col = source.cols;
@@ -164,16 +171,18 @@ namespace ExtendedAI
     float screenSizeX = 0;
     float screenSizeY = 0;
     
-    std::vector<YOLO::Detection> PrioritizeBodyParts(const std::vector<YOLO::Detection>& detections, const std::vector<std::string>& classesToShow) 
+    // Own contribution
+    std::vector<YOLO::Detection> PrioritizeBodyParts(const std::vector<YOLO::Detection>& detections, const std::vector<std::string>& classesToShow)
     {
         std::vector<YOLO::Detection> prioritized;
 
-        auto shouldShowClass = [&classesToShow](const std::string& className) 
+        // Lambda function to check if a class should be shown
+        auto shouldShowClass = [&classesToShow](const std::string& className)
             {
                 return std::find(classesToShow.begin(), classesToShow.end(), className) != classesToShow.end();
             };
 
-        // Priorisiere Kopf mit niedrigerem Schwellenwert
+        // Prioritize head with lower threshold
         if (shouldShowClass("Head"))
         {
             auto head = std::find_if(detections.begin(), detections.end(),
@@ -184,34 +193,34 @@ namespace ExtendedAI
             if (head != detections.end()) prioritized.push_back(*head);
         }
 
-        // Dann Brust
-        if (shouldShowClass("Chest")) 
+        // Then body or back
+        if (shouldShowClass("Body") || shouldShowClass("Back"))
         {
-            auto chest = std::find_if(detections.begin(), detections.end(),
-                [](const YOLO::Detection& d) 
+            auto body = std::find_if(detections.begin(), detections.end(),
+                [](const YOLO::Detection& d)
                 {
-                    return d.className == "Chest" && d.confidence >= 0.5f;
+                    return (d.className == "Body" || d.className == "Back") && d.confidence >= 0.5f;
                 });
-            if (chest != detections.end()) prioritized.push_back(*chest);
+            if (body != detections.end()) prioritized.push_back(*body);
         }
 
-        // Dann Beine
-        if (shouldShowClass("Leg")) 
+        // Then legs (Left-Leg or Right-Leg)
+        if (shouldShowClass("Left-Leg") || shouldShowClass("Right-Leg"))
         {
-            for (const auto& d : detections) 
+            for (const auto& d : detections)
             {
-                if (d.className == "Leg" && d.confidence >= 0.5f) 
+                if ((d.className == "Left-Leg" || d.className == "Right-Leg") && d.confidence >= 0.5f)
                 {
                     prioritized.push_back(d);
                 }
             }
         }
 
-        // Zuletzt Spieler
-        if (shouldShowClass("Player")) 
+        // Finally, entire player
+        if (shouldShowClass("Player"))
         {
             auto player = std::find_if(detections.begin(), detections.end(),
-                [](const YOLO::Detection& d) 
+                [](const YOLO::Detection& d)
                 {
                     return d.className == "Player" && d.confidence >= 0.5f;
                 });
@@ -220,45 +229,47 @@ namespace ExtendedAI
         return prioritized;
     }
 
+    // Own contribution
     cv::Point2f SimulateHumanAiming(const cv::Point2f& currentAim, const cv::Point2f& targetAim, float speed)
     {
-        // Berechne die Distanz zum Ziel
+        // Calculate distance to target
         cv::Point2f diff = targetAim - currentAim;
         float distance = cv::norm(diff);
 
-        // Berechne den Smoothness-Faktor basierend auf der Bildschirmgröße
+        // Calculate smoothness factor based on screen size
         float maxScreenDimension = std::max(screenSizeX, screenSizeY);
         float smoothnessFactor = 1.0f - (distance / maxScreenDimension);
-        smoothnessFactor = std::clamp(smoothnessFactor, 0.1f, 1.0f);  // Begrenzen Sie den Faktor auf einen sinnvollen Bereich
+        smoothnessFactor = std::clamp(smoothnessFactor, 0.1f, 1.0f);  // Limit factor to a reasonable range
 
-        // Entscheide, ob ein menschlicher Fehler gemacht wird
+        // Decide whether to make a human error
         bool makeHumanError = (static_cast<float>(rand()) / RAND_MAX) < humanErrorChance;
 
         cv::Point2f aimPoint;
-        if (makeHumanError && !((static_cast<float>(rand()) / RAND_MAX) < perfectAimChance)) 
+        if (makeHumanError && !((static_cast<float>(rand()) / RAND_MAX) < perfectAimChance))
         {
-            // Füge menschlichen Fehler hinzu
+            // Add human error
             aimPoint = AddHumanError(targetAim, maxHumanError);
         }
-        else 
+        else
         {
-            aimPoint = targetAim; // Perfektes Zielen
+            aimPoint = targetAim; // Perfect aiming
         }
 
-        // Maximale Bewegung basierend auf der Zielgeschwindigkeit und Smoothness
+        // Maximum movement based on target speed and smoothness
         float maxMove = distance * speed * smoothnessFactor;
 
-        // Begrenzen Sie die Bewegung auf die maximale Bewegung
-        if (distance > maxMove) 
+        // Limit movement to maximum movement
+        if (distance > maxMove)
         {
             return currentAim + (diff * maxMove / distance);
         }
-        else 
+        else
         {
             return aimPoint;
         }
     }
 
+    // Own contribution
     cv::Point2f AddHumanError(const cv::Point2f& aimPoint, float maxError) 
     {
         float angle = static_cast<float>(rand()) / RAND_MAX * 2 * M_PI;

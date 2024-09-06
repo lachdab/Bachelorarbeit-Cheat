@@ -6,7 +6,8 @@
 #ifndef WALLHACK_H
 #define WALLHACK_H
 
-// TODO: später sachen löschen, die nicht mehr gebraucht werden
+// SOURCE: https://niemand.com.ar/2019/01/08/fingerprinting-models-when-hooking-directx-vermintide-2/
+// SOURCE: https://niemand.com.ar/2019/01/13/creating-your-own-wallhack/
 
 // Model Structures
 struct propertiesModel
@@ -74,6 +75,7 @@ extern ID3D11DepthStencilState* m_DepthStencilStateFalse;
 extern ID3D11DepthStencilState* m_origDepthStencilState;
 extern UINT pStencilRef;
 
+// Own contribution
 extern void UpdateRedShader(float r, float g, float b, float a);
 extern void UpdateBlueShader(float r, float g, float b, float a);
 
