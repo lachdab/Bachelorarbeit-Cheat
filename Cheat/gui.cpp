@@ -243,7 +243,7 @@ void __stdcall hkD3D11DrawIndexedInstanced(ID3D11DeviceContext* p_context, UINT 
 }
 
 // SOURCE: https://github.com/CasualCoder91/DX11Hook/blob/master/Main.cpp
-// Modified: for my own needs
+// Modified: adjusted to my own needs
 static long __stdcall gui::hkPresent(IDXGISwapChain* p_swap_chain, UINT sync_interval, UINT flags) 
 {   
     void* m_pThisThread = IL2CPP::Thread::Attach(IL2CPP::Domain::Get());
